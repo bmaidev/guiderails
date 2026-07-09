@@ -1,8 +1,8 @@
 # Guiderails — the standard
 
-**Version 0.3 — 9 July 2026.** Supersedes the v0.1 skeleton (retained as MODEL-SKELETON.md for history). Numbering from v0.1 is stable; v0.2 added guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 and their criteria; v0.3 adds criterion 1.1.4 (D-014).
+**Version 0.4 — 9 July 2026.** Supersedes the v0.1 skeleton (retained as MODEL-SKELETON.md for history). Numbering from v0.1 is stable; v0.2 added guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 and their criteria; v0.3 added criterion 1.1.4 (D-014); v0.4 adds criterion 5.3.2 (D-015).
 
-**Contents:** §1 architecture · §2 normative language · §3 definitions · §4 conformance model · §5 the five principles and 52 success criteria · §6 instrument mapping · §7 assurance · §8 change log and open questions.
+**Contents:** §1 architecture · §2 normative language · §3 definitions · §4 conformance model · §5 the five principles and 53 success criteria · §6 instrument mapping · §7 assurance · §8 change log and open questions.
 
 ---
 
@@ -32,6 +32,9 @@ Terms defined in v0.1 carry forward: **principal**, **agent**, **delegation**, *
 - **Safe step** — a journey step whose execution creates no legal or administrative effect and changes no stored state about the principal other than session state.
 - **Delegation token** — the verifiable artefact by which an agent proves a delegation to the service.
 - **Essentiality test** — the service operator's published criteria for classifying a journey as essential. The classification and the test are both machine surfaces.
+- **Agent-driven session** — a session in which an agent presents a delegation, or in which the service otherwise establishes that an agent is operating.
+- **Principal-attributable confirmation** — a confirmation the service can attribute to the principal because it was made through a channel under the principal's control which the agent can neither operate nor forge. An interaction within an agent-driven session is never principal-attributable.
+- **Confirmation token** — the verifiable artefact by which a principal's confirmation of one designated action is conveyed to the service. Issued by the service to the principal; presented once by the agent; never minted by the agent.
 
 ## 4. Conformance model
 
@@ -169,6 +172,7 @@ Terms defined in v0.1 carry forward: **principal**, **agent**, **delegation**, *
 
 **Guideline 5.3 — Consequential checkpoints.**
 - **5.3.1 (A)** The consequential-actions register designates, for each action, whether principal confirmation is required; a designated action is not executable by an agent without a confirmation event attributable to the principal.
+- **5.3.2 (A)** For a designated consequential action, the service accepts only a **principal-attributable confirmation**. An interaction within an agent-driven session — a declaration, checkbox, button press, or any artefact the agent can itself produce — is not a confirmation event. Where the service cannot verify that a confirmation is principal-attributable, it does not execute the action. The confirmation channel conforms to 2.1.1.
 
 **Guideline 5.4 — Audit and contest.**
 - **5.4.1 (AA)** The principal can retrieve a complete, plain-language and machine-readable record of actions taken by agents under their delegations, including the determinations relied upon.
@@ -184,7 +188,9 @@ Terms defined in v0.1 carry forward: **principal**, **agent**, **delegation**, *
 - **5.6.2 (A)** No agent-facing surface presents instructions or affordances whose effect contradicts the human-facing meaning of the same step.
 - **5.6.3 (AA)** Third-party or user-generated content rendered within a journey is programmatically distinguishable from the service operator's own content.
 
-*Techniques:* OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; notification via existing secure inboxes; content provenance marking. *Rationale:* 5.6.2 and 5.6.3 are the service-side half of prompt-injection defence: the operator undertakes never to be the injector, and to fence content it does not control. 5.5 encodes supported decision-making — autonomy with an always-reachable off switch.
+*Techniques:* OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; single-use confirmation tokens issued to the principal's nominated channel (5.5.2); notification via existing secure inboxes; content provenance marking. *Rationale:* 5.6.2 and 5.6.3 are the service-side half of prompt-injection defence: the operator undertakes never to be the injector, and to fence content it does not control. 5.5 encodes supported decision-making — autonomy with an always-reachable off switch.
+
+5.3.2 exists because a confirmation the agent can produce confirms nothing. When a person completes a form themselves, the act and the actor coincide; when an agent acts, they separate, and a tick in the agent's own session records only that the agent ticked. The checkpoint therefore has to live where the agent cannot reach: on the principal's own channel. **Documented limitation.** A service cannot, by inspection, distinguish an *undeclared* agent operating an authenticated human session from the person themselves — no more than the web can distinguish a hijacked session. Guiderails does not claim to. It defends the declared, delegated path; makes that path strictly more capable (3.3.1 and 3.3.2 remove the challenges and rate limits that punish honest agents); makes agent action attributable (5.2.1) and auditable (5.4.1); and, absent a delegation, has no basis to treat the actor as anyone but the account holder, whose acts they then are. Cryptographic agent attestation may narrow this residual (Q10).
 
 ---
 
@@ -212,8 +218,10 @@ Conformance at AA and above requires benchmark evidence produced under [../04-as
 
 **2026-07-09:** project renamed Kerbcut → Guiderails (D-002); no normative changes.
 
-**2026-07-09:** open question Q9 recorded (agent-vs-principal attribution on the human interface); no normative change.
+**v0.3 → v0.4 (2026-07-09):** added criterion **5.3.2 (A)** — only a principal-attributable confirmation satisfies a designated consequential action; a service that cannot verify attribution does not execute (D-015). New definitions: agent-driven session, principal-attributable confirmation, confirmation token. Q9 resolved and closed; the undeclared-agent residual is now a documented limitation; Q10 opened (agent attestation). Totals: 53 criteria (20 A, 27 AA, 6 AAA). 5.3.1 is unchanged and unrenumbered; 5.3.2 strengthens it, so prime directive 3 does not apply. Assurance implication: T6 now tests a checkpoint the agent cannot satisfy on any surface — the fixture's confirmation tokens are issued to the principal out-of-band.
+
+**2026-07-09:** open question Q9 recorded (agent-vs-principal attribution on the human interface); superseded same day by D-015.
 
 **v0.2 → v0.3 (2026-07-09):** added criterion **1.1.4 (A)** — service-description discoverability without prior knowledge of its location (D-014). Totals: 52 criteria (19 A, 27 AA, 6 AAA). No existing criterion changed, renumbered or weakened; prime directive 3 does not apply (the change strengthens Level A). Assurance implication: the reference implementation's conformant build must publish the discovery file and link relation, and the baseline's absence of them is catalogued as a benchmark pattern.
 
-**Carried open questions:** Q1 delegation profile for Australia (legal issues brief, Issue 2); Q2 DDA status of agent access (Issue 1; OD-04); Q3 fraud-control interaction patterns for 3.3 (Issue 5); Q4 privacy analysis of hypothetical queries (Issue 3); Q5 machine format of conformance claims. **New:** Q8 — whether 5.5.2 notification should be A rather than AA for designated high-consequence actions; to be tested in co-design. **Q9 — how a service distinguishes an agent driving the human interface from the principal filling it in.** 5.2.1 requires agent-originated submissions to be flagged and 5.3.1 requires a confirmation event attributable to the principal, but a form post carries no such signal: an agent that operates the human interface can satisfy the confirmation checkpoint by ticking the declaration itself. Discovered in exploratory testing of the reference implementation (04-assurance/rubrics/ADJUDICATION-RUBRIC.md §7). Candidate resolutions: an `agentInvoked`-class submission signal (WebMCP), delegation-bound sessions, or accepting that the checkpoint binds only on declared-tool surfaces and saying so normatively. Resolution may require a new criterion or an amendment to 5.3.1 — a policy change, not an editorial one.
+**Carried open questions:** Q1 delegation profile for Australia (legal issues brief, Issue 2); Q2 DDA status of agent access (Issue 1; OD-04); Q3 fraud-control interaction patterns for 3.3 (Issue 5); Q4 privacy analysis of hypothetical queries (Issue 3); Q5 machine format of conformance claims. **New:** Q8 — whether 5.5.2 notification should be A rather than AA for designated high-consequence actions; to be tested in co-design. ~~Q9~~ **resolved** by criterion 5.3.2 (D-015): a confirmation is valid only if made through a channel the agent cannot operate, so an agent driving the human interface has nothing to tick that would count. The undeclared-agent residual is recorded as a documented limitation in the Principle 5 rationale above, not as an open question. **New:** Q10 — whether cryptographic agent attestation (Web Bot Auth family) should become a normative means of detecting undeclared agents in authenticated sessions, and at what level. Watch the standardisation track; revisit before v1.0.

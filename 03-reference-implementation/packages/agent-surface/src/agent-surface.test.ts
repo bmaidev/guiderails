@@ -28,6 +28,7 @@ import {
   authoriseConsequentialAction,
   type ConsequentialActionSpec,
   type Delegation,
+  ConfirmationTokenStore,
   DuplicateGuard,
 } from './index.ts';
 
@@ -162,26 +163,96 @@ test('5.1.1: no delegation → safe, legible rejection', () => {
   if (!r.authorised) assert.equal(r.reason.code, 'DELEGATION_MISSING');
 });
 
-test('5.3.1: designated action blocks without a principal-attributable confirmation (T6 conformant)', () => {
+test('5.3.1: designated action blocks without a confirmation (T6 conformant)', () => {
   const r = authoriseConsequentialAction({ action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW });
   assert.equal(r.authorised, false);
   if (!r.authorised) assert.equal(r.reason.code, 'CONFIRMATION_REQUIRED');
+});
 
-  const wrongPrincipal = authoriseConsequentialAction({
-    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW,
-    confirmation: { actionId: 'CA-1', principalId: 'P2', at: NOW },
+test('5.3.2: an in-session tick is never a confirmation, however well-formed', () => {
+  const tokens = new ConfirmationTokenStore();
+  const redeemConfirmation = (q: Parameters<typeof tokens.redeem>[0]) => tokens.redeem(q);
+
+  // The agent asserts the right action, the right principal, the right time —
+  // and has simply ticked a box in its own session. It confirms nothing.
+  const ticked = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW, redeemConfirmation,
+    confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW, channel: 'in-session' },
   });
-  if (!wrongPrincipal.authorised) assert.equal(wrongPrincipal.reason.code, 'CONFIRMATION_PRINCIPAL_MISMATCH');
+  assert.equal(ticked.authorised, false);
+  if (!ticked.authorised) assert.equal(ticked.reason.code, 'CONFIRMATION_NOT_PRINCIPAL_ATTRIBUTABLE');
 
-  const ok = authoriseConsequentialAction({
-    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW,
+  const selfMinted = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW, redeemConfirmation,
     confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW },
   });
+  if (!selfMinted.authorised) assert.equal(selfMinted.reason.code, 'CONFIRMATION_NOT_PRINCIPAL_ATTRIBUTABLE');
+});
+
+test('5.3.2: a service that cannot verify confirmations fails closed', () => {
+  const tokens = new ConfirmationTokenStore();
+  const issued = tokens.issue('P1', 'CA-1', NOW);
+  const r = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW,
+    confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW, token: issued.token, channel: 'principal-channel' },
+  });
+  assert.equal(r.authorised, false);
+  if (!r.authorised) assert.equal(r.reason.code, 'CONFIRMATION_NOT_PRINCIPAL_ATTRIBUTABLE');
+});
+
+test('5.3.1/5.3.2: a principal-issued token authorises once, with attribution and notification', () => {
+  const tokens = new ConfirmationTokenStore();
+  const redeemConfirmation = (q: Parameters<typeof tokens.redeem>[0]) => tokens.redeem(q);
+  const issued = tokens.issue('P1', 'CA-1', NOW);
+  const confirmation = { actionId: 'CA-1', principalId: 'P1', at: NOW, token: issued.token, channel: 'principal-channel' as const };
+
+  const ok = authoriseConsequentialAction({ action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW, confirmation, redeemConfirmation });
   assert.equal(ok.authorised, true);
   if (ok.authorised) {
     assert.equal(ok.requiresNotification, true); // 5.5.2
     assert.deepEqual(ok.attribution, { agentOriginated: true, agentId: 'agent-alpha' }); // 5.2.1
   }
+
+  // Replay is the obvious attack; the token is single-use.
+  const replay = authoriseConsequentialAction({ action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW, confirmation, redeemConfirmation });
+  assert.equal(replay.authorised, false);
+  if (!replay.authorised) assert.equal(replay.reason.code, 'CONFIRMATION_ALREADY_USED');
+});
+
+test('5.3.2: a token issued to another principal, or for another action, is refused', () => {
+  const tokens = new ConfirmationTokenStore();
+  const redeemConfirmation = (q: Parameters<typeof tokens.redeem>[0]) => tokens.redeem(q);
+
+  const otherPrincipal = tokens.issue('P2', 'CA-1', NOW);
+  const wrongP = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW, redeemConfirmation,
+    confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW, token: otherPrincipal.token, channel: 'principal-channel' },
+  });
+  if (!wrongP.authorised) assert.equal(wrongP.reason.code, 'CONFIRMATION_PRINCIPAL_MISMATCH');
+
+  const otherAction = tokens.issue('P1', 'CA-3b', NOW);
+  const wrongA = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW, redeemConfirmation,
+    confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW, token: otherAction.token, channel: 'principal-channel' },
+  });
+  if (!wrongA.authorised) assert.equal(wrongA.reason.code, 'CONFIRMATION_ACTION_MISMATCH');
+
+  const unknown = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW, redeemConfirmation,
+    confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW, token: 'not-a-token', channel: 'principal-channel' },
+  });
+  if (!unknown.authorised) assert.equal(unknown.reason.code, 'CONFIRMATION_UNKNOWN');
+});
+
+test('5.3.2: an expired token is refused', () => {
+  const tokens = new ConfirmationTokenStore(15);
+  const redeemConfirmation = (q: Parameters<typeof tokens.redeem>[0]) => tokens.redeem(q);
+  const issued = tokens.issue('P1', 'CA-1', '2026-07-09T03:00:00Z');
+  const r = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: '2026-07-09T03:16:00Z', redeemConfirmation,
+    confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW, token: issued.token, channel: 'principal-channel' },
+  });
+  if (!r.authorised) assert.equal(r.reason.code, 'CONFIRMATION_EXPIRED');
 });
 
 test('non-designated action proceeds under a valid scoped delegation without confirmation (T6 contrast)', () => {
@@ -238,9 +309,14 @@ test('DuplicateGuard: repeat key creates no new effect and identifies the origin
 
 test('integration: designated submit requires confirmation, then duplicates return the original reference', () => {
   const guard = new DuplicateGuard();
-  const confirmation = { actionId: 'CA-1', principalId: 'P1', at: NOW };
+  const tokens = new ConfirmationTokenStore();
+  const issued = tokens.issue('P1', 'CA-1', NOW);
+  const confirmation = { actionId: 'CA-1', principalId: 'P1', at: NOW, token: issued.token, channel: 'principal-channel' as const };
 
-  const auth = authoriseConsequentialAction({ action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, confirmation, at: NOW });
+  const auth = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, confirmation, at: NOW,
+    redeemConfirmation: (q) => tokens.redeem(q),
+  });
   assert.equal(auth.authorised, true);
 
   const submit = () => guard.execute('P1:CA-1', () => ({ reference: 'SSP-00000042', at: NOW }));

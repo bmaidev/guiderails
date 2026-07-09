@@ -16,5 +16,6 @@
 
 export * from './fields.ts';
 export * from './journey.ts';
+export * from './confirmation.ts';
 export * from './accountability.ts';
 export * from './idempotency.ts';

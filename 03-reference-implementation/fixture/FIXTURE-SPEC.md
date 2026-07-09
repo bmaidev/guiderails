@@ -79,6 +79,8 @@ Due 14 days after period end (s13), timezone Australia/Canberra, exposed with ex
 
 ### Consequential-actions register (machine surface in the conformant build, 1.1.2 / 5.3.1)
 
+Designated actions require a **principal-attributable confirmation** (5.3.2): the principal obtains a single-use, action-scoped token from `POST /api/confirmations` using their own credential, and the agent presents it. The agent cannot reach that endpoint (a request bearing agent identity is refused) and cannot mint a token. On the baseline there is no confirmation channel at all (B-07).
+
 | ID | Action | Journey | Principal confirmation designated? | Duplicate protection | Notification (5.5.2) |
 |---|---|---|---|---|---|
 | CA-1 | Submit claim | J1 | **Yes** | One open claim per principal; repeat submission returns the original claim reference and creates no new effect | Yes |
