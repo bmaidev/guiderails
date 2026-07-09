@@ -17,6 +17,7 @@ jobs:
           - 03-reference-implementation/packages/agent-surface
           - 03-reference-implementation/conformant
           - 03-reference-implementation/baseline
+          - 03-reference-implementation/parity
           - 04-assurance/harness
     steps:
       - uses: actions/checkout@v4
