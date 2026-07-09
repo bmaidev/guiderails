@@ -164,6 +164,14 @@ export function createFixtureServer(store: Store): http.Server {
         });
       }
 
+      // ---- Harness instrumentation (not a service surface; methodology §6 log access) ----
+      if (req.method === 'GET' && path === '/api/_fixture/claims') {
+        return json(res, 200, store.claims);
+      }
+      if (req.method === 'GET' && path === '/api/_fixture/log') {
+        return json(res, 200, store.log);
+      }
+
       // ---- Rules (Principle 4) ----
       if (req.method === 'GET' && path === '/api/rules/ssp/changelog') {
         return json(res, 200, {

@@ -1,0 +1,20 @@
+{
+  "name": "@guiderails/fixture-baseline",
+  "version": "0.1.0",
+  "description": "Baseline build of the fictional Skills Support Payment fixture (D-009): the scientific control. Same journeys, same rule logic, same outcomes for identical inputs; degraded ONLY per the catalogued patterns in ../parity/PATTERN-CATALOGUE.md.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
