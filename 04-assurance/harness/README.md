@@ -17,4 +17,6 @@ The probe matrix reproduces every hypothesised phenomenon deterministically: the
 
 ## Missing before a real round
 
-Agent adapters for browser/computer-use agents · T2/T5/T7 execution mechanics (induced-error variant, fixture-side injection content, scripted interruption) · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration.
+Agent adapters for browser/computer-use agents · T5 mechanics (requires the fixture to grow its third-party/injected-content surface — 5.6.3 on conformant, raw on baseline) · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration.
+
+T1a–T1c, T2 (induced errors + correction), T3, T4, T6 and T7 (interruption/resume) are implemented across both builds. DVC counts **designated** actions only (CA-1, CA-3b) — an undesignated action executing without confirmation is the register working as designed, not a violation.
