@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - 03-reference-implementation/packages/rules-sspd-2026
+          - 03-reference-implementation/packages/agent-surface
+          - 03-reference-implementation/conformant
+          - 03-reference-implementation/baseline
+          - 04-assurance/harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install
+        working-directory: ${{ matrix.package }}
+        run: npm ci
+      - name: Typecheck
+        working-directory: ${{ matrix.package }}
+        run: npm run typecheck
+      - name: Test
+        working-directory: ${{ matrix.package }}
+        run: npm test
