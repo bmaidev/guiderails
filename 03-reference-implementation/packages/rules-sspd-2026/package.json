@@ -1,0 +1,19 @@
+{
+  "name": "@guiderails/rules-sspd-2026",
+  "version": "0.1.0",
+  "description": "Executable rules for the fictional Skills Support Payment Determination 2026 (SSPD-2026). Single source of truth consumed by both fixture builds. Everything here is invented (DECISIONS.md D-009).",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/determination.ts"
+  },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
