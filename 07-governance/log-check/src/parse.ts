@@ -118,3 +118,15 @@ export function citedDecisions(...documents: string[]): string[] {
   for (const doc of documents) for (const m of doc.matchAll(/D-\d{3}/g)) found.add(m[0]);
   return [...found].sort();
 }
+
+/** The open questions §8 actually records, open or struck through. */
+export function questionsDefinedInChangeLog(markdown: string): Set<string> {
+  const section = markdown.slice(markdown.indexOf('\n## 8.'));
+  if (section === markdown) throw new Error('MODEL.md has no §8.');
+  return new Set([...section.matchAll(/\bQ\d+\b/g)].map((m) => m[0]));
+}
+
+/** Every open question a document refers to. */
+export function citedQuestions(text: string): Set<string> {
+  return new Set([...text.matchAll(/\bQ\d+\b/g)].map((m) => m[0]));
+}

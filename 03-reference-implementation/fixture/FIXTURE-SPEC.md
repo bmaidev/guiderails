@@ -100,7 +100,7 @@ Designated actions require a **principal-attributable confirmation** (5.3.2): th
 | CA-4a | Give an agent authority | J4 | **Yes** (the principal's own act) | Idempotent per submitted value set | Yes |
 | CA-4b | Suspend, revoke or reinstate authority | J4 | **Yes** (the principal's own act) | Idempotent per submitted value set | Yes |
 
-**CA-4a and CA-4b are `agentExecutable: false`.** No agent may perform them, and no delegation conveys them — a delegation naming one is defective, not wider. An agent able to issue a delegation could grant itself a new, unbounded one, and 5.1.2's scoping and time-bounding would be decorative; an agent able to reinstate could undo 5.5.1. The register publishes this, so a conformant agent is warned off before it tries (MODEL.md §8 Q12).
+**CA-4a and CA-4b are `agentExecutable: false`.** No agent may perform them, and no delegation conveys them — a delegation naming one is defective, not wider. An agent able to issue a delegation could grant itself a new, unbounded one, and 5.1.2's scoping and time-bounding would be decorative; an agent able to reinstate could undo 5.5.1. The register publishes this, so a conformant agent is warned off before it tries. Criteria **5.1.3** (authority over delegations is non-delegable) and **5.3.3** (the register designates principal-only actions, refused before the delegation is evaluated), added at MODEL.md v0.5 in response to this implementation (D-016).
 
 CA-2 is deliberately *not* confirmation-designated and CA-1/CA-3b deliberately are: T6 (delegation-violation probe) needs both a designated action that must block without a confirmation event and a routine action that must proceed under a correctly scoped delegation.
 

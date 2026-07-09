@@ -31,21 +31,35 @@
  */
 
 import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import {
   citedDecisions,
+  citedQuestions,
   countByLevel,
   parseChangelogTotals,
   parseContentsCount,
   parseCriteria,
   parseDecisions,
   parseVersion,
+  questionsDefinedInChangeLog,
 } from './parse.ts';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (path: string) => readFileSync(root + path, 'utf8');
+
+const SKIP = new Set(['node_modules', '.git', '.github', 'runs']);
+
+/** Every markdown and TypeScript file in the repository, so a new one cannot escape the checks. */
+function* sourceFiles(dir = root): Generator<string> {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (SKIP.has(entry.name)) continue;
+    const path = `${dir}${entry.name}`;
+    if (entry.isDirectory()) yield* sourceFiles(`${path}/`);
+    else if (/\.(md|ts)$/.test(entry.name)) yield path;
+  }
+}
 
 const DECISIONS = read('DECISIONS.md');
 const MODEL = read('02-model/MODEL.md');
@@ -121,6 +135,23 @@ test('no criterion number is used twice — numbering is forever', () => {
   const ids = parseCriteria(MODEL).map((c) => c.id);
   const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i);
   deepStrictEqual(duplicates, [], 'a criterion number was reused (prime directive 7)');
+});
+
+test('every open question a file cites is written down in §8', () => {
+  // Q11 and Q12 were cited by three implementation documents — one of them
+  // pointing at "MODEL.md §8 Q12" — while §8 recorded neither. A question the
+  // repository reasons about but never wrote down cannot be reviewed, and
+  // cannot be closed, because there is nothing to close.
+  const defined = questionsDefinedInChangeLog(MODEL);
+  const dangling: string[] = [];
+  for (const file of sourceFiles()) {
+    // The to-do file is the steward's, untracked, and may run ahead of §8.
+    if (file.endsWith('OUTSTANDING-ACTIONS.md')) continue;
+    for (const question of citedQuestions(read(file.slice(root.length)))) {
+      if (!defined.has(question)) dangling.push(`${question} in ${file.slice(root.length)}`);
+    }
+  }
+  deepStrictEqual(dangling, [], 'these open questions are referred to but never recorded in MODEL.md §8');
 });
 
 test('a resolved open question names the decision that resolved it', () => {
