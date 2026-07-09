@@ -87,6 +87,22 @@ const PAGES: Array<{ name: string; get: () => Promise<string> }> = [
     name: 'submit step',
     get: async () => (await fetch(`${base}/journeys/J1/steps/submit`, { headers: { cookie: 'sid=a11y' } })).text(),
   },
+  {
+    name: 'J2 period step',
+    get: async () => (await fetch(`${base}/journeys/J2/steps/period`, { headers: { cookie: 'sid=a11y' } })).text(),
+  },
+  {
+    name: 'J2 report step',
+    get: async () => (await fetch(`${base}/journeys/J2/steps/report`, { headers: { cookie: 'sid=a11y' } })).text(),
+  },
+  {
+    name: 'J3 contact step',
+    get: async () => (await fetch(`${base}/journeys/J3/steps/contact`, { headers: { cookie: 'sid=a11y' } })).text(),
+  },
+  {
+    name: 'J3 payment step',
+    get: async () => (await fetch(`${base}/journeys/J3/steps/payment`, { headers: { cookie: 'sid=a11y' } })).text(),
+  },
 ];
 
 for (const p of PAGES) {

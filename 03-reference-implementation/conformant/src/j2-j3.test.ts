@@ -1,0 +1,148 @@
+/*
+ * Copyright 2026 Black Mountain AI (BMAI)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import type http from 'node:http';
+import { createFixtureServer } from './server.ts';
+import { Store } from './store.ts';
+
+let server: http.Server;
+let store: Store;
+let base: string;
+
+before(async () => {
+  store = new Store();
+  store.addDelegation({
+    id: 'DLG-T', principalId: 'P1', agentId: 'agent-alpha',
+    scope: { journeys: ['J1', 'J2', 'J3'], actions: ['CA-1', 'CA-2', 'CA-3a', 'CA-3b'] },
+    validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active',
+  });
+  store.addDelegation({
+    id: 'DLG-NARROW', principalId: 'P1', agentId: 'agent-alpha',
+    scope: { journeys: ['J2'], actions: ['CA-2'] },
+    validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active',
+  });
+  server = createFixtureServer(store);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const addr = server.address();
+  base = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+});
+
+after(() => server.close());
+
+function headers(sid: string, delegationId = 'DLG-T'): Record<string, string> {
+  return { 'content-type': 'application/json', cookie: `sid=${sid}`, 'x-agent-id': 'agent-alpha', 'x-delegation-id': delegationId };
+}
+
+test('2.6.2: J2 period surface exposes due date with explicit timezone and consequence', async () => {
+  const d = await (await fetch(`${base}/api/journeys/J2/period`)).json() as any;
+  assert.equal(d.period.end, '2026-07-05');
+  assert.equal(d.report.dueDate, '2026-07-19');
+  assert.equal(d.report.timezone, 'Australia/Canberra');
+  assert.match(d.consequence, /suspended/);
+});
+
+test('J2 end-to-end via tools: CA-2 executes under a scoped delegation WITHOUT confirmation (T1b / T6 contrast)', async () => {
+  const sid = 'sid-j2';
+  for (const [step, values] of [['period', {}], ['report', { incomeForPeriod: 1480, attendance: 'attended' }]] as const) {
+    const r = await fetch(`${base}/api/journeys/J2/steps/${step}`, { method: 'POST', headers: headers(sid), body: JSON.stringify({ values }) });
+    assert.equal(r.status, 200, step);
+  }
+  // Deliberately no confirmation: CA-2 is not confirmation-designated.
+  const r = await fetch(`${base}/api/journeys/J2/steps/declare`, {
+    method: 'POST', headers: headers(sid, 'DLG-NARROW'), body: JSON.stringify({ values: { declaration: true } }),
+  });
+  assert.equal(r.status, 201);
+  const d = await r.json() as any;
+  assert.match(d.consequentialAction.reference, /^SSPR-\d{8}$/);
+  assert.deepEqual(d.attribution, { agentOriginated: true, agentId: 'agent-alpha' });
+
+  // One report per period: retry returns the original (3.4.1)
+  const retry = await fetch(`${base}/api/journeys/J2/steps/declare`, {
+    method: 'POST', headers: headers(sid), body: JSON.stringify({ values: { declaration: true } }),
+  });
+  const d2 = await retry.json() as any;
+  assert.equal(d2.duplicate, true);
+  assert.equal(d2.consequentialAction.reference, d.consequentialAction.reference);
+});
+
+test('J3 contact (CA-3a): executes without confirmation; J3 payment (CA-3b): designated, blocks then succeeds', async () => {
+  const sid = 'sid-j3';
+  const contact = await fetch(`${base}/api/journeys/J3/steps/contact`, {
+    method: 'POST', headers: headers(sid), body: JSON.stringify({ values: { email: 'r.ashe@example.net' } }),
+  });
+  assert.equal(contact.status, 201);
+  assert.match(((await contact.json()) as any).consequentialAction.reference, /^SSPU-\d{8}$/);
+
+  const paymentValues = { bsb: '123-456', accountNumber: '12345678', accountName: 'R Ashe' };
+  const blocked = await fetch(`${base}/api/journeys/J3/steps/payment`, {
+    method: 'POST', headers: headers(sid), body: JSON.stringify({ values: paymentValues }),
+  });
+  assert.equal(blocked.status, 403);
+  assert.equal(((await blocked.json()) as any).error.code, 'CONFIRMATION_REQUIRED');
+
+  const ok = await fetch(`${base}/api/journeys/J3/steps/payment`, {
+    method: 'POST', headers: headers(sid),
+    body: JSON.stringify({ values: paymentValues, confirmation: { actionId: 'CA-3b', principalId: 'P1', at: '2026-07-09T03:00:00Z' } }),
+  });
+  assert.equal(ok.status, 201);
+
+  // Idempotent per value set: same values → duplicate; different values → new effect
+  const dup = await fetch(`${base}/api/journeys/J3/steps/payment`, {
+    method: 'POST', headers: headers(sid),
+    body: JSON.stringify({ values: paymentValues, confirmation: { actionId: 'CA-3b', principalId: 'P1', at: '2026-07-09T03:01:00Z' } }),
+  });
+  assert.equal(((await dup.json()) as any).duplicate, true);
+});
+
+test('5.1.2: a delegation scoped to J2 only cannot execute J3 actions', async () => {
+  const r = await fetch(`${base}/api/journeys/J3/steps/contact`, {
+    method: 'POST', headers: headers('sid-scope', 'DLG-NARROW'), body: JSON.stringify({ values: { email: 'x@example.com' } }),
+  });
+  assert.equal(r.status, 403);
+  assert.equal(((await r.json()) as any).error.code, 'SCOPE_JOURNEY');
+});
+
+test('1.1.2: service description now enumerates all three journeys with tools, state and period surfaces', async () => {
+  const d = await (await fetch(`${base}/.well-known/guiderails.json`)).json() as any;
+  assert.deepEqual(d.journeys.map((j: any) => j.id), ['J1', 'J2', 'J3']);
+  const j2 = d.journeys.find((j: any) => j.id === 'J2');
+  assert.ok(j2.reportingPeriod.endsWith('/api/journeys/J2/period'));
+  assert.deepEqual(j2.safeSteps, ['period', 'report']);
+  const j3 = d.journeys.find((j: any) => j.id === 'J3');
+  assert.deepEqual(j3.safeSteps, []);
+  assert.equal(j3.consequentialActions.length, 2);
+});
+
+test('J2/J3 per-journey state surfaces are independent (2.4.1)', async () => {
+  const sid = 'sid-state';
+  await fetch(`${base}/api/journeys/J2/steps/period`, { method: 'POST', headers: headers(sid), body: JSON.stringify({ values: {} }) });
+  const j2 = await (await fetch(`${base}/api/journeys/J2/state`, { headers: { cookie: `sid=${sid}` } })).json() as any;
+  assert.equal(j2.currentStep, 'report');
+  const j1 = await (await fetch(`${base}/api/journeys/J1/state`, { headers: { cookie: `sid=${sid}` } })).json() as any;
+  assert.equal(j1.currentStep, 'identity'); // untouched by J2 progress
+});
+
+test('J2 validation: structured errors for the report step (2.2.2)', async () => {
+  const r = await fetch(`${base}/api/journeys/J2/steps/report`, {
+    method: 'POST', headers: headers('sid-val'), body: JSON.stringify({ values: { incomeForPeriod: 'about $1480', attendance: 'sometimes' } }),
+  });
+  assert.equal(r.status, 422);
+  const d = await r.json() as any;
+  assert.equal(d.errors.find((e: any) => e.field === 'incomeForPeriod')?.constraint, 'type');
+  assert.equal(d.errors.find((e: any) => e.field === 'attendance')?.constraint, 'enum');
+});

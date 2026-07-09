@@ -17,34 +17,29 @@
 /**
  * BASELINE build — the scientific control (FICTIONAL, D-009).
  *
- * Same journey, same field set, same validation logic and same outcomes
- * for identical inputs as the conformant build (parity, FIXTURE-SPEC §8).
- * Degraded ONLY per catalogued patterns (../parity/PATTERN-CATALOGUE.md):
+ * Journeys J1–J3: same specs, field sets, validation logic and outcomes
+ * for identical inputs as the conformant build (parity, FIXTURE-SPEC §8);
+ * degraded ONLY per catalogued patterns B-01..B-10
+ * (../parity/PATTERN-CATALOGUE.md). Field specs and validation are
+ * imported from the conformant module so parity of meaning is
+ * structural, not aspirational.
  *
- *  B-01 placeholder-only labels, div-based submit control
- *  B-02 meaning carried by layout/colour (threshold table colour-coded)
- *  B-03 eligibility guidance as PDF only
- *  B-04 15-minute session timeout, undeclared, silent data loss
- *  B-05 visual challenge gate on submission, no alternative path
- *  B-06 no rules endpoint; prose/PDF paraphrase omits the s11 interaction
- *  B-07 no delegation, confirmation, attribution or agent-action record
- *  B-08 validation errors as a generic unassociated banner
- *  B-09 no journey-state exposure
- *  B-10 interruption discards the journey (no resume path)
- *
- * Anything NOT in the catalogue matches the conformant build. Field
- * specs and validation are imported from the conformant module so parity
- * of meaning is structural, not aspirational. (Refactor to a shared
- * fixture-def package is tracked in the build README.)
+ *  B-01 placeholder-only labels, generic text controls, div submit
+ *  B-02 meaning carried by layout/colour
+ *  B-03/B-06 guidance as PDF only; prose omits s11; no rules endpoint
+ *  B-04/B-10 15-minute undeclared timeout; no resume
+ *  B-05 visual challenge gate on every consequential submission
+ *  B-07 no delegation, confirmation, attribution
+ *  B-08 generic unassociated error banner
+ *  B-09 no machine surfaces (no state, schema, discovery, period)
  */
 
 import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { validateValues } from '../../packages/agent-surface/src/index.ts';
-import { J1_SPEC, J1_FIELDS } from '../../conformant/src/j1.ts';
+import { JOURNEYS, REFERENCE_PREFIX, PERIOD_SURFACE } from '../../conformant/src/journeys.ts';
 import { BaselineStore } from './store.ts';
 
-const STEP_ORDER = J1_SPEC.steps.map((s) => s.id);
 export const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // B-04: enforced, never declared
 
 const PLACEHOLDER_TEXT: Record<string, string> = {
@@ -52,6 +47,8 @@ const PLACEHOLDER_TEXT: Record<string, string> = {
   residentSince: 'Resident since', fortnightlyIncome: 'Income', courseProvider: 'Provider',
   courseName: 'Course', courseWeeks: 'Weeks', studyLoadEFT: 'Load', enrolmentStatus: 'Status',
   enrolmentDocument: 'Document', incomeDeclared: 'Declared', declaration: 'I agree',
+  incomeForPeriod: 'Income', attendance: 'Attendance', partialReason: 'Reason',
+  bsb: 'BSB', accountNumber: 'Account', accountName: 'Account name',
 };
 
 function esc(s: unknown): string {
@@ -104,11 +101,10 @@ export function guidancePdf(): Buffer {
 }
 
 function pageHtml(title: string, body: string): string {
-  // B-02: the layout/colour table carries meaning colour-only on the start page.
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>.btn{background:#2a6;colour:#fff;color:#fff;padding:8px 14px;display:inline-block;cursor:pointer}.errors{color:#c00}.ok{background:#cfc}.no{background:#fcc}</style>
+<style>.btn{background:#2a6;color:#fff;padding:8px 14px;display:inline-block;cursor:pointer}.errors{color:#c00}.ok{background:#cfc}.no{background:#fcc}</style>
 </head>
 <body>
 <p><b>Commonwealth Skills Support Agency</b> — fictional service for standards testing (Guiderails fixture, D-009)</p>
@@ -126,24 +122,23 @@ function controlHtml(name: string, value: unknown): string {
   return `<div><input type="text" name="${esc(name)}" placeholder="${esc(PLACEHOLDER_TEXT[name] ?? name)}"${v}></div>`;
 }
 
-function stepForm(stepId: string, values: Record<string, unknown>, errorBanner: string, sid: string): string {
-  const fields = J1_FIELDS[stepId];
+function stepForm(jid: string, stepId: string, values: Record<string, unknown>, errorBanner: string, sid: string, consequential: boolean): string {
+  const fields = JOURNEYS[jid].fields[stepId];
   const controls = fields.map((f) => controlHtml(f.name, values[f.name])).join('\n');
-  const challenge = stepId === 'submit'
+  const challenge = consequential
     ? `<div>${challengeSvg(challengeDigits(sid))}<input type="text" name="challenge" placeholder="Enter the characters shown"></div>`
     : '';
-  // B-01: submit control is a scripted div, not a button.
   return `${errorBanner}
-<form method="post" action="/journeys/J1/steps/${esc(stepId)}" id="f">
+<form method="post" action="/journeys/${esc(jid)}/steps/${esc(stepId)}" id="f">
 ${controls}
 ${challenge}
 <div class="btn" onclick="document.getElementById('f').submit()">Continue</div>
 </form>`;
 }
 
-function coerce(stepId: string, values: Record<string, unknown>): Record<string, unknown> {
+function coerce(jid: string, stepId: string, values: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...values };
-  for (const f of J1_FIELDS[stepId]) {
+  for (const f of JOURNEYS[jid].fields[stepId]) {
     const v = out[f.name];
     if (typeof v !== 'string' || v === '') continue;
     if (f.dataType === 'integer' || f.dataType === 'money' || f.dataType === 'decimal') {
@@ -156,20 +151,27 @@ function coerce(stepId: string, values: Record<string, unknown>): Record<string,
   return out;
 }
 
+/** Baseline duplicate keys: no principal exists (B-07), so keys degrade to identity/session scope. */
+function baselineDuplicateKey(jid: string, actionId: string, sid: string, draftValues: Record<string, unknown>, values: Record<string, unknown>): string {
+  if (actionId === 'CA-1') return `${draftValues.fullName}|${draftValues.dateOfBirth}|CA-1`;
+  if (actionId === 'CA-2') return `${sid}|CA-2|${PERIOD_SURFACE.period.end}`;
+  const sorted = Object.keys(values).sort().map((k) => `${k}=${String(values[k])}`).join('&');
+  return `${sid}|${actionId}|${sorted}`;
+}
+
 export function createBaselineServer(store: BaselineStore): http.Server {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const path = url.pathname;
     const now = () => new Date(store.now()).toISOString();
 
-    const html = (status: number, body: string, headers: Record<string, string> = {}) => {
-      res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', ...headers });
+    const html = (status: number, body: string) => {
+      res.writeHead(status, { 'content-type': 'text/html; charset=utf-8' });
       res.end(body);
     };
 
     try {
       if (req.method === 'GET' && (path === '/' || path === '/journeys/J1')) {
-        // B-02: eligibility summarised as a colour-coded table; meaning is colour-only.
         res.writeHead(303, { location: '/journeys/J1/steps/identity' });
         return res.end();
       }
@@ -188,16 +190,17 @@ export function createBaselineServer(store: BaselineStore): http.Server {
         return res.end(JSON.stringify(store.log));
       }
 
-      // B-09: no /api/journeys/J1/state. B-06: no /api/rules/*. B-07: no delegation surfaces.
-      if (path.startsWith('/api/')) {
-        res.writeHead(404, { 'content-type': 'text/html; charset=utf-8' });
-        return res.end(pageHtml('Not found', '<p>Page not found.</p>'));
+      // B-09: no state/schema/discovery/period surfaces. B-06: no rules. B-07: no delegation.
+      if (path.startsWith('/api/') || path === '/.well-known/guiderails.json') {
+        return html(404, pageHtml('Not found', '<p>Page not found.</p>'));
       }
 
-      const m = /^\/journeys\/J1\/steps\/([a-z]+)$/.exec(path);
+      const m = /^\/journeys\/(J[123])\/steps\/([a-z]+)$/.exec(path);
       if (m) {
-        const stepId = m[1];
-        if (!STEP_ORDER.includes(stepId)) return html(404, pageHtml('Not found', '<p>Page not found.</p>'));
+        const [, jid, stepId] = m;
+        const journey = JOURNEYS[jid];
+        const step = journey.spec.steps.find((s) => s.id === stepId);
+        if (!step) return html(404, pageHtml('Not found', '<p>Page not found.</p>'));
 
         const cookie = req.headers.cookie ?? '';
         const cm = /(?:^|;\s*)sid=([A-Za-z0-9-]+)/.exec(cookie);
@@ -207,55 +210,64 @@ export function createBaselineServer(store: BaselineStore): http.Server {
           res.setHeader('set-cookie', `sid=${sid}; Path=/`);
         }
         // B-04/B-10: expiry silently discards the draft; no warning, no recovery.
-        const { draft, expired } = store.draftWithTimeout(sid, SESSION_TIMEOUT_MS);
-        const idx = STEP_ORDER.indexOf(stepId);
+        const { draft, expired } = store.draftWithTimeout(`${sid}|${jid}`, SESSION_TIMEOUT_MS);
+        const stepOrder = journey.spec.steps.map((s) => s.id);
+        const idx = stepOrder.indexOf(stepId);
+        const consequential = step.kind === 'consequential';
 
         if (req.method === 'GET') {
           const expiredNote = expired ? '<p class="errors">Your session has expired. Please start again.</p>' : '';
-          const guidance = stepId === 'circumstances'
-            ? '<p>Not sure if you qualify? <a href="/guidance.pdf">Download the eligibility guide (PDF)</a>.</p>'
-            : '';
-          return html(200, pageHtml(J1_SPEC.steps[idx].title, `${expiredNote}<h1>${esc(J1_SPEC.steps[idx].title)}</h1>${guidance}${stepForm(stepId, draft.values, '', sid)}`));
+          let guidance = '';
+          if (jid === 'J1' && stepId === 'circumstances') {
+            guidance = '<p>Not sure if you qualify? <a href="/guidance.pdf">Download the eligibility guide (PDF)</a>.</p>';
+          }
+          if (jid === 'J2' && stepId === 'period') {
+            // Due date appears in prose only; no machine surface, no timezone semantics (B-09 / 2.6.2 violation by omission)
+            guidance = `<p>Report for ${esc(PERIOD_SURFACE.period.start)} – ${esc(PERIOD_SURFACE.period.end)}. Don't be late or your payment may stop.</p>`;
+          }
+          return html(200, pageHtml(step.title, `${expiredNote}<h1>${esc(step.title)}</h1>${guidance}${stepForm(jid, stepId, draft.values, '', sid, consequential)}`));
         }
 
         if (req.method === 'POST') {
           const chunks: Buffer[] = [];
           for await (const c of req) chunks.push(c as Buffer);
           const raw = Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString('utf8')));
-          const values = coerce(stepId, raw);
-          store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { step: stepId, values } });
+          const values = coerce(jid, stepId, raw);
+          store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { journey: jid, step: stepId, values } });
 
           // Same validation logic as conformant (parity); only the PRESENTATION degrades (B-08).
-          const errors = validateValues(J1_FIELDS[stepId], values);
+          const errors = validateValues(journey.fields[stepId], values);
           if (errors.length > 0) {
-            return html(200, pageHtml(J1_SPEC.steps[idx].title, `<h1>${esc(J1_SPEC.steps[idx].title)}</h1>${stepForm(stepId, values, '<div class="errors">Some of the information you entered is not valid. Please check the form and try again.</div>', sid)}`));
+            return html(200, pageHtml(step.title, `<h1>${esc(step.title)}</h1>${stepForm(jid, stepId, values, '<div class="errors">Some of the information you entered is not valid. Please check the form and try again.</div>', sid, consequential)}`));
           }
 
-          if (stepId === 'submit') {
+          if (consequential) {
             // B-05: challenge gate; no alternative path.
             if (raw.challenge !== challengeDigits(sid)) {
-              store.record({ at: now(), sessionId: sid, type: 'challenge-failed', detail: {} });
-              return html(200, pageHtml('Declaration and submit', `<h1>Declaration and submit</h1>${stepForm('submit', values, '<div class="errors">The characters you entered did not match. Try again.</div>', sid)}`));
+              store.record({ at: now(), sessionId: sid, type: 'challenge-failed', detail: { journey: jid, step: stepId } });
+              return html(200, pageHtml(step.title, `<h1>${esc(step.title)}</h1>${stepForm(jid, stepId, values, '<div class="errors">The characters you entered did not match. Try again.</div>', sid, true)}`));
             }
-            const missing = STEP_ORDER.filter((s) => s !== 'submit' && !draft.completedSteps.includes(s));
+            const required = journey.spec.steps.filter((s) => s.kind === 'safe').map((s) => s.id);
+            const missing = required.filter((s) => !draft.completedSteps.includes(s));
             if (missing.length > 0) {
               return html(200, pageHtml('Cannot submit', `<h1>Cannot submit</h1><div class="errors">Your application is incomplete. Please start again.</div>`));
             }
             Object.assign(draft.values, values);
             // B-07: executes for whoever posts — no delegation, no confirmation event, no attribution.
-            const key = `${draft.values.fullName}|${draft.values.dateOfBirth}`;
+            const key = baselineDuplicateKey(jid, step.actionId!, sid, draft.values, values);
             const outcome = store.guard.execute(key, () => {
-              const reference = store.nextClaimReference();
-              store.claims.push({ reference, values: { ...draft.values }, at: now() });
-              store.record({ at: now(), sessionId: sid, type: 'effect', detail: { actionId: 'CA-1', reference } });
+              const reference = store.nextReference(REFERENCE_PREFIX[step.actionId!]);
+              store.claims.push({ journeyId: jid, actionId: step.actionId!, reference, values: { ...draft.values }, at: now() });
+              store.record({ at: now(), sessionId: sid, type: 'effect', detail: { actionId: step.actionId, reference } });
               return { reference, at: now() };
             });
-            return html(200, pageHtml('Application submitted', `<h1>Thank you</h1><p>Your reference is ${esc(outcome.record.reference)}.</p>`));
+            return html(200, pageHtml('Submitted', `<h1>Thank you</h1><p>Your reference is ${esc(outcome.record.reference)}.</p>`));
           }
 
           Object.assign(draft.values, values);
           if (!draft.completedSteps.includes(stepId)) draft.completedSteps.push(stepId);
-          res.writeHead(303, { location: `/journeys/J1/steps/${STEP_ORDER[idx + 1]}` });
+          const next = stepOrder[idx + 1];
+          res.writeHead(303, { location: next ? `/journeys/${jid}/steps/${next}` : `/journeys/${jid}/steps/${stepOrder[0]}` });
           return res.end();
         }
       }

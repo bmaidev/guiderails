@@ -23,7 +23,7 @@ store.addDelegation({
   id: 'DLG-DEV-1',
   principalId: 'P-DEV',
   agentId: 'agent-dev',
-  scope: { journeys: ['J1'], actions: ['CA-1'] },
+  scope: { journeys: ['J1', 'J2', 'J3'], actions: ['CA-1', 'CA-2', 'CA-3a', 'CA-3b'] },
   validFrom: '2026-07-01T00:00:00Z',
   validTo: '2027-07-01T00:00:00Z',
   status: 'active',
