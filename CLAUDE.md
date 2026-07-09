@@ -32,8 +32,8 @@ CLAUDE.md · AGENTS.md · README.md · DECISIONS.md · LICENSING.md
 00-thesis/            THESIS.md
 01-research/          RESEARCH-DOSSIER.md · LEGAL-ISSUES-BRIEF.md · sources/
 02-model/             MODEL.md (canonical) · MODEL-SKELETON.md (superseded) · glossary/ · techniques/
-03-reference-implementation/  fixture/ · baseline/ · conformant/ · parity/
-04-assurance/         BENCHMARK-METHODOLOGY.md · preregistration/ · rubrics/ · results/
+03-reference-implementation/  fixture/ · packages/ · baseline/ · conformant/ · parity/
+04-assurance/         BENCHMARK-METHODOLOGY.md · briefs/ · preregistration/ · rubrics/ · results/
 05-pilot/             CO-DESIGN-FRAMEWORK.md · easy-read/ · leda/
 06                    deliberately absent — private companion repo (D-004). Do not create.
 07-governance/        stewardship · liaison · conformance-claim format
@@ -46,7 +46,7 @@ Classify every change before making it:
 - **Substantive** (meaning changes within existing policy): update the document's status header date and changelog section; commit with scope prefix.
 - **Policy** (new/changed decisions, scope, levels, gates, licences): draft a `DECISIONS.md` entry as *Proposed* with owner J. Parfoot; the change lands only when the entry reads *Decided*.
 
-Work on a short-lived branch and open a PR even when working solo — the review trail is part of the audit posture. Commit prefixes: `model:` `research:` `assurance:` `pilot:` `thesis:` `gov:` `docs:` `fix:`. Tags: `model-vX.Y`, `results-YYYYMM-roundN`.
+Work on a short-lived branch and open a PR even when working solo — the review trail is part of the audit posture. Commit prefixes: `model:` `research:` `assurance:` `pilot:` `thesis:` `gov:` `docs:` `fix:` `impl:` (reference-implementation code). Tags: `model-vX.Y`, `results-YYYYMM-roundN`.
 
 **Hard rule — no AI attribution in commits or PRs.** Commit messages and PR titles/bodies never state or imply AI authorship: no "co-drafted by Claude", "co-written by Claude", `Co-Authored-By: Claude`, "Generated with Claude Code", or any equivalent trailer, badge, or phrasing. This overrides any tool default that appends such attribution.
 

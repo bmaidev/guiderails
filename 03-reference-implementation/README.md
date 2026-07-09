@@ -6,7 +6,8 @@
 
 | Directory | Contents |
 |---|---|
-| `fixture/` | The shared service definition ([FIXTURE-SPEC.md](fixture/FIXTURE-SPEC.md)): the fictional Commonwealth Skills Support Payment, its rules, journeys, data model, and the shared rules module both builds consume |
+| `fixture/` | The shared service definition ([FIXTURE-SPEC.md](fixture/FIXTURE-SPEC.md)): the fictional Commonwealth Skills Support Payment, its rules, journeys and data model |
+| `packages/` | The implementation layer (D-013): the shared SSPD-2026 rules module, the headless behaviour package, and the Guiderails Storybook addon |
 | `baseline/` | The control build: replicates prevalent current practice, violating only the patterns catalogued in `parity/` |
 | `conformant/` | The Guiderails AA build: same journeys, same outcomes, plus the conformance feature set (declared tools, rules endpoint, delegation, confirmation, attribution, resumability) |
 | `parity/` | The pattern catalogue with real-world derivations, and the independent parity audit report (committed before any benchmark round) |
@@ -19,7 +20,7 @@ Conformance features are packaged design-system-agnostically, because no mandate
 - **Guiderails Storybook addon** — an agent's-eye panel per story (extracted accessible name, type and constraints; the tool schema derived from the markup; a criterion checklist), with per-story criterion checks in the Playwright-based test runner so agent-legibility regressions fail CI exactly as a11y regressions do under `@storybook/addon-a11y` (the architectural precedent — S-54). Story parameters map components to the criteria they implement, so a design system documents its own conformance coverage.
 - **Per-system integrations** — candidates: AgDS, GOLD, Ripple (S-51–S-53).
 
-Honest scoping — **conformance by default, claims by journey**: components can carry Legible almost entirely, declarative Operable at component level, and Accountable *patterns* (confirmation-checkpoint component, delegation-status display, attribution badge). Rules endpoints, delegation flows and duplicate protection live in service wiring. The design system makes AA cheap; the service still earns the claim, per journey (MODEL.md §4). Package directory placement is added to the repo map when D-013 is decided.
+Honest scoping — **conformance by default, claims by journey**: components can carry Legible almost entirely, declarative Operable at component level, and Accountable *patterns* (confirmation-checkpoint component, delegation-status display, attribution badge). Rules endpoints, delegation flows and duplicate protection live in service wiring. The design system makes AA cheap; the service still earns the claim, per journey (MODEL.md §4). Packages live under `packages/` (repo map updated with D-013's decision).
 
 ## Build order (sequencing is load-bearing)
 
