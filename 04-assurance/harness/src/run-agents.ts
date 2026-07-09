@@ -27,6 +27,7 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { runOne } from './runner.ts';
+import { credentialSource, missingCredentialMessage } from './credentials.ts';
 import { llmAgent, DEFAULT_MODELS, VENDORS, type Vendor } from './llm-agent.ts';
 import { TASKS } from './tasks.ts';
 import type { RunResult } from './metrics.ts';
@@ -49,6 +50,14 @@ if (!VENDORS.includes(vendor)) {
   console.error(`Unknown vendor "${vendor}". Use one of: ${VENDORS.join(', ')}.`);
   process.exit(1);
 }
+// Before anything is spun up or any request is made. A run that dies on task 4
+// of 12 for want of a key has already cost minutes and told us nothing.
+const missing = missingCredentialMessage(vendor);
+if (missing) {
+  console.error(missing);
+  process.exit(1);
+}
+
 const model = positionalModel ?? flag('model', DEFAULT_MODELS[vendor]);
 const buildArg = positionalBuild ?? flag('build', 'conformant');
 const taskIds = (positionalTasks ?? flag('tasks', 'T1a,T1b,T1c,T3,T4,T5,T6')).split(',');
@@ -63,6 +72,8 @@ if (tasks.length === 0) {
 console.log('EXPLORATORY REAL-AGENT RUN — not a benchmark round (D-008).');
 console.log('No preregistration, no frozen briefs, n=1, single vendor. Never publish or cite.\n');
 console.log(`vendor=${vendor} model=${model} builds=${builds.join(',')} tasks=${tasks.map((t) => t.id).join(',')}`);
+// The variable name, never the value: enough to catch "I set the wrong one".
+console.log(`credential=${credentialSource(vendor)} (value never logged)`);
 if (vendor === 'openai' || vendor === 'google') {
   console.log(`NOTE: the ${vendor} driver has not yet completed a live smoke run. Record any wire-shape correction it needs.`);
 }

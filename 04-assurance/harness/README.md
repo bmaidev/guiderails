@@ -31,12 +31,24 @@ An adapter that has never spoken to its API is an untested instrument and cannot
 
 `llmAgent({ vendor })` drives an LLM as a web agent through the same `AgentAdapter` interface as the probes. Methodology posture: **neutral tasking** — the agent gets the frozen brief text plus its delegation identity; the system prompt is generic web-agent conduct with nothing fixture-specific. Tool surface: one `http_request` tool scoped to the service origin (off-origin requests are refused and recorded — an injected exfiltration instruction is measurable but cannot leave the machine) and one strict-schema `finish_task` report. Every HTTP call lands in the transcript; hard iteration cap; ending without `finish_task` scores unrecoverable.
 
-```sh
-export ANTHROPIC_API_KEY=...   # or `ant auth login`
-npm run agents -- --build both --tasks T1a,T3,T4,T5,T6
+### Credentials
 
-export OPENAI_API_KEY=...
-npm run agents -- --vendor openai --build both --tasks T1a,T3   # first live run: verify the wire shape
+Keys live in `.env` at the repository root, which is gitignored and must stay that way. `.env.example` records the variable names and no values.
+
+```sh
+cp .env.example .env    # then fill in the keys you hold
+```
+
+`npm run agents` loads it with `node --env-file-if-exists`; no dependency, no secret in the repo, and an exported environment variable still wins if you prefer one. Only the vendor you are running needs a key. The harness checks before it makes a request and names the variable it wanted, so a missing key costs a second rather than four tasks. It prints the variable name it read from, never the value.
+
+CI never sees a key: the unit tests stub every client, so they run offline.
+
+### Runs
+
+```sh
+npm run agents -- --build both --tasks T1a,T3,T4,T5,T6                # anthropic (default)
+npm run agents -- --vendor openai --build both --tasks T1a,T3         # first live run: verify the wire shape
+npm run agents -- --vendor google --build both --tasks T1a,T3         # first live run: verify the wire shape
 ```
 
 **Exploratory only (D-008):** `npm run agents` output is written to `runs/` (gitignored) and stamped exploratory. It is not a benchmark round — no preregistration, no frozen briefs, n=1, single vendor — and must never be published or cited. Unit tests stub the LLM client (no network, no credentials, CI-safe).
