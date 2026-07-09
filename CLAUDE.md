@@ -1,10 +1,10 @@
-# CLAUDE.md — Kerbcut operating manual
+# CLAUDE.md — Guiderails operating manual
 
 This file is the operating contract for any agent or human working in this repository. It is loaded at session start and is authoritative; where it conflicts with ad-hoc instructions, stop and raise the conflict. `AGENTS.md` points here — one source of truth.
 
 ## What this repository is
 
-Kerbcut: an open, WCAG-shaped conformance standard making government services safely operable by AI agents acting on a person's behalf — accessibility-first, government-grade. The repo is the product: standard, evidence base, reference implementation, measurement harness, and co-design governance, built to survive hostile expert review from the accessibility community, the legal community, the standards community, and agencies simultaneously. That is the quality bar. When in doubt, ask "would this survive the most qualified sceptic in each of those rooms?" — if not, it isn't done.
+Guiderails: an open, WCAG-shaped conformance standard making government services safely operable by AI agents acting on a person's behalf — accessibility-first, government-grade. The repo is the product: standard, evidence base, reference implementation, measurement harness, and co-design governance, built to survive hostile expert review from the accessibility community, the legal community, the standards community, and agencies simultaneously. That is the quality bar. When in doubt, ask "would this survive the most qualified sceptic in each of those rooms?" — if not, it isn't done.
 
 ## Session bootstrap — read order
 

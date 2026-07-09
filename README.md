@@ -1,4 +1,4 @@
-# Kerbcut
+# Guiderails
 
 **An open standard for agent-accessible government services.**
 
@@ -8,9 +8,9 @@
 
 ## What this is
 
-Kerbcut is a proposed conformance standard — structured deliberately like WCAG — that defines what a government digital service must do so that AI agents acting **on behalf of a person** can discover it, understand it, operate it, compute its rules, and be held accountable for what they do there.
+Guiderails is a proposed conformance standard — structured deliberately like WCAG — that defines what a government digital service must do so that AI agents acting **on behalf of a person** can discover it, understand it, operate it, compute its rules, and be held accountable for what they do there.
 
-The name is the argument. Kerb cuts were built for wheelchairs and ended up serving everyone — prams, delivery trolleys, cyclists, travellers with luggage. The uplift this standard asks for (unambiguous form semantics, structured actions, computable rules, auditable delegation) serves screen readers and voice control users first, and every other user and user agent as a consequence.
+The name is the argument. Guardrails exist to stop things going wrong; guiderails exist to keep a journey on the path its traveller chose. Every lift runs on guide rails — the machinery that made vertical access universal moves safely because its path is engineered, not guessed. This standard is that engineering for digital services: the person sets the destination, the rails hold their agent to it, and the uplift required (unambiguous semantics, structured actions, computable rules, auditable delegation) supports assistive-technology users first and every user as a consequence.
 
 **Agents are assistive technology.** WCAG's own Robust principle has always required that content be reliably interpretable by a wide variety of user agents, including assistive technologies. AI agents are the newest user agent — and the fastest-adopted assistive technology in history. Nobody has yet written the standard that makes government services work for them safely.
 
@@ -24,7 +24,7 @@ Three regimes exist today in Australia. None covers this.
 | DTA Agentic AI addendum to the AI technical standard (4 Jun 2026) | Agentic AI systems **operated by agencies** | Citizen-side agents **arriving at** agency services |
 | Emerging agentic-web standards (WebMCP, llms.txt, Arazzo, Web Bot Auth) | Generic technical mechanisms | Government-grade requirements: delegation, determinability of law, contestability, audit |
 
-Kerbcut is the missing third leg: the **service-side** standard for **citizen-side** agents, composed from the emerging open standards and hardened with the accountability requirements government uniquely needs.
+Guiderails is the missing third leg: the **service-side** standard for **citizen-side** agents, composed from the emerging open standards and hardened with the accountability requirements government uniquely needs.
 
 ## The five principles
 
@@ -80,7 +80,7 @@ Sponsor-, client- and partner-specific material is deliberately **not** in this 
 - **Steward:** Black Mountain AI (BMAI), Canberra. Stewardship means maintaining the specification, the assurance method, and the contribution process — not owning conformance.
 - **Specification text:** CC BY 4.0 (proposed).
 - **Reference implementation and tooling:** Apache-2.0 (proposed).
-- **Standards posture:** Kerbcut composes with, and profiles, the open agentic-web standards (WebMCP, llms.txt, Arazzo, MCP, Web Bot Auth families). It does not fork them. The intent is that the government-grade layers (Determinable, Accountable) are contributed back toward international standardisation once proven.
+- **Standards posture:** Guiderails composes with, and profiles, the open agentic-web standards (WebMCP, llms.txt, Arazzo, MCP, Web Bot Auth families). It does not fork them. The intent is that the government-grade layers (Determinable, Accountable) are contributed back toward international standardisation once proven.
 
 ## Co-design commitment
 
