@@ -29,6 +29,10 @@ store.addDelegation({
   status: 'active',
 });
 
+// The principal's own credential — models their authenticated device/channel.
+// The dev agent never receives it, so it can never mint a confirmation (5.3.2).
+store.setPrincipalSecret('P-DEV', 'dev-principal-secret');
+
 const port = Number(process.env.PORT ?? 3100);
 createFixtureServer(store).listen(port, '127.0.0.1', () => {
   console.log(`Conformant fixture (FICTIONAL, D-009): http://127.0.0.1:${port}/.well-known/guiderails.json`);

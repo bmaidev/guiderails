@@ -36,6 +36,7 @@ before(async () => {
     scope: { journeys: ['J2'], actions: ['CA-2'] },
     validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active',
   });
+  store.setPrincipalSecret('P1', 'secret-P1');
   server = createFixtureServer(store);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const addr = server.address();
@@ -43,6 +44,16 @@ before(async () => {
 });
 
 after(() => server.close());
+
+async function confirmationToken(actionId: string): Promise<string> {
+  const r = await fetch(`${base}/api/confirmations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-principal-secret': 'secret-P1' },
+    body: JSON.stringify({ actionId }),
+  });
+  assert.equal(r.status, 201, `mint ${actionId}`);
+  return ((await r.json()) as { token: string }).token;
+}
 
 function headers(sid: string, delegationId = 'DLG-T'): Record<string, string> {
   return { 'content-type': 'application/json', cookie: `sid=${sid}`, 'x-agent-id': 'agent-alpha', 'x-delegation-id': delegationId };
@@ -97,14 +108,14 @@ test('J3 contact (CA-3a): executes without confirmation; J3 payment (CA-3b): des
 
   const ok = await fetch(`${base}/api/journeys/J3/steps/payment`, {
     method: 'POST', headers: headers(sid),
-    body: JSON.stringify({ values: paymentValues, confirmation: { actionId: 'CA-3b', principalId: 'P1', at: '2026-07-09T03:00:00Z' } }),
+    body: JSON.stringify({ values: paymentValues, confirmation: { actionId: 'CA-3b', principalId: 'P1', at: '2026-07-09T03:00:00Z', token: await confirmationToken('CA-3b'), channel: 'principal-channel' } }),
   });
   assert.equal(ok.status, 201);
 
   // Idempotent per value set: same values → duplicate; different values → new effect
   const dup = await fetch(`${base}/api/journeys/J3/steps/payment`, {
     method: 'POST', headers: headers(sid),
-    body: JSON.stringify({ values: paymentValues, confirmation: { actionId: 'CA-3b', principalId: 'P1', at: '2026-07-09T03:01:00Z' } }),
+    body: JSON.stringify({ values: paymentValues, confirmation: { actionId: 'CA-3b', principalId: 'P1', at: '2026-07-09T03:01:00Z', token: await confirmationToken('CA-3b'), channel: 'principal-channel' } }),
   });
   assert.equal(((await dup.json()) as any).duplicate, true);
 });
@@ -195,4 +206,74 @@ test('1.1.3: the discovery surfaces agree on one canonical service description',
   assert.equal(d.discovery.linkRelation, 'service-desc');
   const llms = await (await fetch(`${base}/llms.txt`)).text();
   assert.ok(llms.includes(d.discovery.serviceDescription));
+});
+
+// ---- 5.3.2 / D-015: the confirmation checkpoint cannot be satisfied by the agent ----
+
+test('5.3.2: an agent driving the HUMAN form cannot confirm by ticking the declaration (Q9 closed)', async () => {
+  const sid = 'sid-q9';
+  // Complete the safe steps as an agent, via the human surface.
+  const form = { 'content-type': 'application/x-www-form-urlencoded', cookie: `sid=${sid}`, 'x-agent-id': 'agent-alpha', 'x-delegation-id': 'DLG-T' };
+  const post = (step: string, values: Record<string, string>) =>
+    fetch(`${base}/journeys/J1/steps/${step}`, { method: 'POST', headers: form, body: new URLSearchParams(values).toString(), redirect: 'manual' });
+
+  assert.equal((await post('identity', { fullName: 'Rowan Ashe', dateOfBirth: '1999-03-14', email: 'rowan.ashe@example.com', mobile: '0400000001' })).status, 303);
+  assert.equal((await post('circumstances', { residentSince: '2018-02-05', fortnightlyIncome: '950', courseProvider: 'Ridgeline TAFE', courseName: 'Cert III', courseWeeks: '26', studyLoadEFT: '1.0', enrolmentStatus: 'enrolled' })).status, 303);
+  assert.equal((await post('evidence', { enrolmentDocument: 'enrolment-confirmation.pdf', incomeDeclared: 'on' })).status, 303);
+  assert.equal((await post('review', {})).status, 303);
+
+  // The declaration tick is the AGENT's act, not the principal's. It must not pass.
+  const submit = await post('submit', { declaration: 'on' });
+  assert.equal(submit.status, 403);
+  assert.match(await submit.text(), /not a confirmation event/);
+
+  // and no effect was created
+  const effects = await (await fetch(`${base}/api/_fixture/claims`)).json() as any[];
+  assert.equal(effects.filter((e) => e.actionId === 'CA-1' && e.values.fullName === 'Rowan Ashe').length, 0);
+});
+
+test('5.3.2: the agent cannot mint a confirmation — no secret, and agent identity is refused outright', async () => {
+  // No principal credential.
+  const anon = await fetch(`${base}/api/confirmations`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ actionId: 'CA-1' }),
+  });
+  assert.equal(anon.status, 401);
+  assert.equal(((await anon.json()) as any).error.code, 'PRINCIPAL_AUTHENTICATION_REQUIRED');
+
+  // Even holding the secret, a request carrying agent identity is refused.
+  const asAgent = await fetch(`${base}/api/confirmations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-principal-secret': 'secret-P1', 'x-agent-id': 'agent-alpha' },
+    body: JSON.stringify({ actionId: 'CA-1' }),
+  });
+  assert.equal(asAgent.status, 403);
+  assert.equal(((await asAgent.json()) as any).error.code, 'AGENT_MAY_NOT_CONFIRM');
+
+  // Undesignated actions have nothing to confirm.
+  const undesignated = await fetch(`${base}/api/confirmations`, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-principal-secret': 'secret-P1' }, body: JSON.stringify({ actionId: 'CA-2' }),
+  });
+  assert.equal(undesignated.status, 400);
+});
+
+test('5.3.2: a self-minted confirmation object on the tool path is refused, and says where to get a real one', async () => {
+  const sid = 'sid-selfmint';
+  for (const [step, values] of [['identity', { fullName: 'Rowan Ashe', dateOfBirth: '1999-03-14', email: 'rowan.ashe@example.com', mobile: '0400000001' }], ['circumstances', { residentSince: '2018-02-05', fortnightlyIncome: 950, courseProvider: 'R', courseName: 'C', courseWeeks: 26, studyLoadEFT: 1, enrolmentStatus: 'enrolled' }], ['evidence', { enrolmentDocument: 'enrolment-confirmation.pdf', incomeDeclared: true }], ['review', {}]] as const) {
+    await fetch(`${base}/api/journeys/J1/steps/${step}`, { method: 'POST', headers: headers(sid), body: JSON.stringify({ values }) });
+  }
+  const r = await fetch(`${base}/api/journeys/J1/steps/submit`, {
+    method: 'POST', headers: headers(sid),
+    body: JSON.stringify({ values: { declaration: true }, confirmation: { actionId: 'CA-1', principalId: 'P1', at: '2026-07-09T03:00:00Z' } }),
+  });
+  assert.equal(r.status, 403);
+  const d = await r.json() as any;
+  assert.equal(d.error.code, 'CONFIRMATION_NOT_PRINCIPAL_ATTRIBUTABLE');
+  assert.equal(d.error.confirmationChannel, '/api/confirmations');
+  assert.match(d.error.obtainedBy, /principal, not the agent/);
+});
+
+test('1.1.2: the service description advertises the confirmation channel (5.3.2)', async () => {
+  const d = await (await fetch(`${base}/.well-known/guiderails.json`)).json() as any;
+  assert.ok(d.confirmationChannel.issue.endsWith('/api/confirmations'));
+  assert.match(d.confirmationChannel.note, /not a confirmation event/);
 });

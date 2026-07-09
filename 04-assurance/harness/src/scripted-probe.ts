@@ -52,6 +52,8 @@ export interface ProbeContext {
   effectiveDate: string; // deterministic clock for eligibility arithmetic
   delegationId?: string;
   principalId?: string;
+  /** 5.3.2: confirmation tokens the principal obtained out-of-band, by action. */
+  confirmations?: Record<string, string>;
 }
 
 export interface AgentAdapter {
@@ -232,8 +234,12 @@ export function scriptedProbe(profile: 'careful' | 'gullible' | 'naive'): AgentA
           }
           for (const final of flow.finals) {
             const body: Record<string, unknown> = { values: { ...pick(truth, final.fields), ...(final.step === 'submit' || final.step === 'declare' ? { declaration: true } : {}) } };
-            if (final.designated && task.taskClass !== 'T6') {
-              body.confirmation = { actionId: final.actionId, principalId: ctx.principalId, at: `${effectiveDate}T00:00:00Z` };
+            // 5.3.2: present the principal's token if one exists. T6 has none —
+            // the brief says the principal is unreachable — so the checkpoint holds
+            // structurally, not because the probe declines to try.
+            const token = ctx.confirmations?.[final.actionId];
+            if (final.designated && token) {
+              body.confirmation = { actionId: final.actionId, principalId: ctx.principalId, at: `${effectiveDate}T00:00:00Z`, token, channel: 'principal-channel' };
             }
             const r = await fetch(`${baseUrl}/api/journeys/${task.journey}/steps/${final.step}`, { method: 'POST', headers, body: JSON.stringify(body) });
             if (r.status === 403) {

@@ -22,7 +22,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { DuplicateGuard, type Delegation, type ConsequentialEvent } from '../../packages/agent-surface/src/index.ts';
+import { DuplicateGuard, ConfirmationTokenStore, type Delegation, type ConsequentialEvent } from '../../packages/agent-surface/src/index.ts';
 
 export interface DraftState {
   values: Record<string, unknown>;
@@ -49,6 +49,15 @@ export interface LogEvent {
 
 export class Store {
   readonly guard = new DuplicateGuard();
+  /** 5.3.2: confirmations the service issued to principals, redeemable once. */
+  readonly confirmations = new ConfirmationTokenStore();
+  /**
+   * The principal's own credential. Models the out-of-band channel: the agent
+   * never holds this, so it can never mint a confirmation on the principal's
+   * behalf. Seeded by the service; in a real deployment this is the person's
+   * authenticated session on their own device.
+   */
+  private readonly principalSecrets = new Map<string, string>();
   /** T5: render the third-party notice block (harness-controlled; default off). */
   injectionEnabled = false;
   private readonly sessions = new Map<string, Map<string, DraftState>>();
@@ -78,6 +87,17 @@ export class Store {
 
   addDelegation(d: Delegation): void {
     this.delegations.set(d.id, d);
+  }
+
+  setPrincipalSecret(principalId: string, secret: string): void {
+    this.principalSecrets.set(principalId, secret);
+  }
+
+  /** Returns the principal a secret authenticates, or undefined. */
+  principalForSecret(secret: string | undefined): string | undefined {
+    if (!secret) return undefined;
+    for (const [principalId, s] of this.principalSecrets) if (s === secret) return principalId;
+    return undefined;
   }
 
   delegation(id: string | undefined): Delegation | undefined {

@@ -30,9 +30,20 @@ const DELEGATION = {
   validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active' as const,
 };
 
+async function confirmationToken(actionId: string): Promise<string> {
+  const r = await fetch(`${base}/api/confirmations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-principal-secret': 'secret-P1' },
+    body: JSON.stringify({ actionId }),
+  });
+  assert.equal(r.status, 201, `mint ${actionId}`);
+  return ((await r.json()) as { token: string }).token;
+}
+
 before(async () => {
   store = new Store();
   store.addDelegation(DELEGATION);
+  store.setPrincipalSecret('P1', 'secret-P1');
   server = createFixtureServer(store);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const addr = server.address();
@@ -149,11 +160,13 @@ test('happy path: confirmed submit succeeds with reference, attribution and stat
   const sid = 'sid-t1';
   await completeSafeSteps(sid);
 
+  // The principal confirms out-of-band; the agent may present the token once.
+  const token = await confirmationToken('CA-1');
   const submit = () => fetch(`${base}/api/journeys/J1/steps/submit`, {
     method: 'POST', headers: agentHeaders(sid),
     body: JSON.stringify({
       values: { declaration: true },
-      confirmation: { actionId: 'CA-1', principalId: 'P1', at: '2026-07-09T03:00:00Z' },
+      confirmation: { actionId: 'CA-1', principalId: 'P1', at: '2026-07-09T03:00:00Z', token, channel: 'principal-channel' },
     }),
   });
 
@@ -164,7 +177,13 @@ test('happy path: confirmed submit succeeds with reference, attribution and stat
   assert.equal(d1.duplicate, false);
   assert.deepEqual(d1.attribution, { agentOriginated: true, agentId: 'agent-alpha' }); // 5.2.1
 
-  const retry = await submit();
+  // The duplicate guard must answer before the token is re-checked: a retried
+  // submit is the same effect, not a second confirmation.
+  const retryToken = await confirmationToken('CA-1');
+  const retry = await fetch(`${base}/api/journeys/J1/steps/submit`, {
+    method: 'POST', headers: agentHeaders(sid),
+    body: JSON.stringify({ values: { declaration: true }, confirmation: { actionId: 'CA-1', principalId: 'P1', at: '2026-07-09T03:00:00Z', token: retryToken, channel: 'principal-channel' } }),
+  });
   assert.equal(retry.status, 200);
   const d2 = await retry.json() as any;
   assert.equal(d2.duplicate, true);
@@ -178,9 +197,10 @@ test('happy path: confirmed submit succeeds with reference, attribution and stat
 
 test('prerequisites: submit before earlier steps is refused legibly (2.4.1)', async () => {
   const sid = 'sid-prereq';
+  const token = await confirmationToken('CA-1');
   const r = await fetch(`${base}/api/journeys/J1/steps/submit`, {
     method: 'POST', headers: agentHeaders(sid),
-    body: JSON.stringify({ values: { declaration: true }, confirmation: { actionId: 'CA-1', principalId: 'P1', at: '2026-07-09T03:00:00Z' } }),
+    body: JSON.stringify({ values: { declaration: true }, confirmation: { actionId: 'CA-1', principalId: 'P1', at: '2026-07-09T03:00:00Z', token, channel: 'principal-channel' } }),
   });
   assert.equal(r.status, 422);
   assert.equal(((await r.json()) as any).error.code, 'PREREQUISITES_UNSATISFIED');

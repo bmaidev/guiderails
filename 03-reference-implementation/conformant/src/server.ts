@@ -121,6 +121,13 @@ function serviceDescription(origin: string): Record<string, unknown> {
     essentialityTest: { reference: `${origin}/api/essentiality-test`, summary: 'A journey is essential if it lodges, varies or reports on a claim for the payment.' },
     journeys: Object.entries(JOURNEYS).map(([id, j]) => journeyDescription(origin, id, j)), // 1.1.2
     consequentialActionsRegister: CA_REGISTER, // 5.3.1: designation is a machine surface
+    // 5.3.2: how a designated action is confirmed. Agents redeem; only the principal obtains.
+    confirmationChannel: {
+      issue: `${origin}/api/confirmations`,
+      obtainedBy: 'the principal, authenticated on their own channel',
+      redeemedBy: 'the agent, once, for the one action named in the token',
+      note: 'An interaction within an agent-driven session is not a confirmation event.',
+    },
     rules: {
       determination: `${origin}/api/rules/ssp/determination`,
       changelog: `${origin}/api/rules/ssp/changelog`,
@@ -211,6 +218,34 @@ export function createFixtureServer(store: Store): http.Server {
           test: 'A journey is essential if it lodges, varies or reports on a claim for the payment.',
           classifications: Object.keys(JOURNEYS).map((journey) => ({ journey, essential: true })),
         });
+      }
+
+      // ---- Confirmation channel (5.3.2): principal-only, agent-unreachable ----
+      if (req.method === 'POST' && path === '/api/confirmations') {
+        // The agent must never mint a confirmation. Two independent guards:
+        // it does not hold the principal's secret, and a request carrying agent
+        // identity is refused outright even if a secret somehow leaked to it.
+        if (req.headers['x-agent-id'] || req.headers['x-delegation-id']) {
+          return json(res, 403, {
+            error: {
+              code: 'AGENT_MAY_NOT_CONFIRM',
+              message: 'A confirmation must be made by the principal through a channel the agent does not control (5.3.2). This request carries agent identity.',
+            },
+          });
+        }
+        const principalId = store.principalForSecret(req.headers['x-principal-secret'] as string | undefined);
+        if (!principalId) {
+          return json(res, 401, { error: { code: 'PRINCIPAL_AUTHENTICATION_REQUIRED', message: 'Confirmations are issued only to an authenticated principal.' } });
+        }
+        const body = JSON.parse((await readBody(req)) || '{}');
+        const action = CA_REGISTER.find((a) => a.id === body.actionId);
+        if (!action) return json(res, 400, { error: { code: 'UNKNOWN_ACTION', message: `No consequential action "${body.actionId}".` } });
+        if (!action.confirmationDesignated) {
+          return json(res, 400, { error: { code: 'ACTION_NOT_DESIGNATED', message: `Action "${action.id}" does not require principal confirmation.` } });
+        }
+        const issued = store.confirmations.issue(principalId, action.id, now());
+        store.record({ at: now(), sessionId: 'principal-channel', type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'principal-channel', issued: true } });
+        return json(res, 201, { token: issued.token, actionId: action.id, issuedAt: issued.issuedAt, singleUse: true });
       }
 
       // ---- Harness instrumentation (not a service surface; methodology §6 log access) ----
@@ -359,7 +394,24 @@ ${THIRD_PARTY_NOTICE.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('\n')}
             res.writeHead(303, { location: next ? `/journeys/${jid}/steps/${next}` : `/journeys/${jid}/steps/${stepOrder[0]}` });
             return res.end();
           }
-          // Human path: the session principal's own posted declaration IS the confirmation event.
+          // 5.3.2: a session presenting agent identity is agent-driven, so the
+          // posted declaration is the AGENT's act, not the principal's. Route it
+          // through the same authorisation as the declared-tool path — which will
+          // demand a principal-issued confirmation token it does not have.
+          const agentId = req.headers['x-agent-id'] as string | undefined;
+          const delegationId = req.headers['x-delegation-id'] as string | undefined;
+          if (agentId || delegationId) {
+            return executeConsequential(res, store, sid, jid, step, values, {
+              agentId,
+              delegationId,
+              confirmation: { actionId: step.actionId!, principalId: '', at: now(), channel: 'in-session' },
+            }, now(), true);
+          }
+          // Human path: no agent identity is presented, so the service has no basis
+          // to treat the actor as anyone but the principal, and the posted
+          // declaration is their own act. The residual case — an undeclared agent
+          // driving this surface — is a documented limitation, not a defence
+          // (MODEL.md §5 Principle 5 rationale, Q10).
           return executeConsequential(res, store, sid, jid, step, values, { humanPrincipalId: `principal-${sid}` }, now(), true);
         }
       }
@@ -422,15 +474,32 @@ function executeConsequential(
       delegation,
       confirmation: auth.confirmation,
       at,
+      // 5.3.2: the service verifies the token; the agent can only present one.
+      redeemConfirmation: (q) => store.confirmations.redeem(q),
     });
     if (!result.authorised) {
       store.record({ at, sessionId: sid, type: 'rejection', detail: { actionId: action.id, ...result.reason } });
-      return json(res, 403, { error: result.reason }); // 5.1.1: safe, legible rejection
+      const body = {
+        error: {
+          ...result.reason,
+          // 5.1.1 requires rejecting *with a reason*; a reason the agent cannot act
+          // on is half a rejection. Tell it where a confirmation comes from.
+          ...(result.reason.code.startsWith('CONFIRMATION')
+            ? { confirmationChannel: '/api/confirmations', obtainedBy: 'the principal, not the agent' }
+            : {}),
+        },
+      };
+      if (asHtml) {
+        res.writeHead(403, { 'content-type': 'text/html; charset=utf-8' });
+        res.end(page('Cannot submit', `<p>${esc(result.reason.message)}</p>`));
+        return;
+      }
+      return json(res, 403, body); // 5.1.1: safe, legible rejection
     }
     principalId = result.principalId;
     attribution = result.attribution;
     if (action.confirmationDesignated) {
-      store.record({ at, sessionId: sid, type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'delegated-confirmation' } });
+      store.record({ at, sessionId: sid, type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'principal-channel', redeemedBy: auth.agentId } });
     }
   }
 
