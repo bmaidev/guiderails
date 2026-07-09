@@ -277,3 +277,46 @@ test('1.1.2: the service description advertises the confirmation channel (5.3.2)
   assert.ok(d.confirmationChannel.issue.endsWith('/api/confirmations'));
   assert.match(d.confirmationChannel.note, /not a confirmation event/);
 });
+
+// ---- 3.4.2: resumability that survives a killed session ----
+
+test('3.4.2: a killed session does not destroy the work — a new session resumes it under the same delegation', async () => {
+  const first = 'sid-t7-a';
+  for (const [step, values] of [['identity', { fullName: 'Mina Kovač', dateOfBirth: '2006-11-02', email: 'mina@example.com', mobile: '0400000002' }], ['circumstances', { residentSince: '2023-08-21', fortnightlyIncome: 1500, courseProvider: 'Harbourline', courseName: 'Cert IV', courseWeeks: 12, studyLoadEFT: 0.8, enrolmentStatus: 'enrolled' }]] as const) {
+    const r = await fetch(`${base}/api/journeys/J1/steps/${step}`, { method: 'POST', headers: headers(first), body: JSON.stringify({ values }) });
+    assert.equal(r.status, 200, step);
+  }
+
+  // The session dies. A fresh cookie, same delegation.
+  const resumed = 'sid-t7-b';
+  const state = await (await fetch(`${base}/api/journeys/J1/state`, { headers: headers(resumed) })).json() as any;
+  assert.equal(state.currentStep, 'identity', 'the new session starts empty');
+  assert.equal(state.resumable.available, true, 'but the principal\'s work survives');
+  assert.deepEqual(state.resumable.completedSteps, ['identity', 'circumstances']);
+  assert.equal(state.resumable.declaredPeriodHours, 24);
+
+  const r = await fetch(`${base}/api/journeys/J1/resume`, { method: 'POST', headers: headers(resumed) });
+  assert.equal(r.status, 200);
+  const after = ((await r.json()) as any).state;
+  assert.equal(after.currentStep, 'evidence', 'resumed at the next step, no data re-entered');
+  assert.deepEqual(after.remainingSteps, ['evidence', 'review', 'submit']);
+});
+
+test('3.4.2: a resume adopts the principal\'s work, so it requires a delegation naming them', async () => {
+  const r = await fetch(`${base}/api/journeys/J1/resume`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'sid=noauth' } });
+  assert.equal(r.status, 403);
+  assert.equal(((await r.json()) as any).error.code, 'DELEGATION_REQUIRED');
+});
+
+test('3.4.2: with no saved work there is nothing to resume, said legibly', async () => {
+  const r = await fetch(`${base}/api/journeys/J3/resume`, { method: 'POST', headers: headers('sid-noresume') });
+  assert.equal(r.status, 404);
+  assert.equal(((await r.json()) as any).error.code, 'NO_RESUME_POINT');
+});
+
+test('1.1.2: the service description declares the resume period and endpoint (3.4.2)', async () => {
+  const d = await (await fetch(`${base}/.well-known/guiderails.json`)).json() as any;
+  assert.equal(d.resumability.declaredPeriodHours, 24);
+  assert.match(d.resumability.resume, /\/api\/journeys\/\{journeyId\}\/resume$/);
+  assert.match(d.resumability.note, /keyed to the principal, not the session/);
+});

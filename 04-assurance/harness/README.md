@@ -23,6 +23,9 @@ The probe matrix reproduces every hypothesised phenomenon deterministically: the
 |---|---|---|---|
 | Anthropic | `providers/anthropic.ts` | `claude-opus-4-8` | yes (exploratory runs) |
 | OpenAI | `providers/openai.ts` | `gpt-5` | **no — needs a smoke run before any round** |
+| Google | `providers/google.ts` | `gemini-3-pro` | **no — needs a smoke run before any round** |
+
+Methodology §3's ≥3-vendor requirement is met in code. It is not met in evidence until each driver has spoken to its live API.
 
 An adapter that has never spoken to its API is an untested instrument and cannot produce evidence. The OpenAI driver's loop mechanics are covered by stub tests; its wire shape is not.
 
@@ -42,6 +45,8 @@ npm run agents -- --vendor openai --build both --tasks T1a,T3   # first live run
 
 ## Missing before a real round
 
-A third vendor (methodology §3 requires ≥3 independent vendors; two drivers exist, one is live-verified) · a live smoke run for the OpenAI driver · browser/computer-use product agents (the current adapter is an API agentic loop, not a consumer browser product) · T7 interruption mechanics for live agents · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration · parity audit · OD-07 result owner.
+Live smoke runs for the OpenAI and Google drivers (an untested instrument cannot produce evidence) · browser/computer-use product agents (the current adapter is an API agentic loop, not a consumer browser product) · T7 interruption mechanics for live agents · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration · parity audit · OD-07 result owner.
 
-**All eight task classes are implemented across both builds.** T5 renders adversarial third-party content fixture-side (fenced with `data-provenance` on conformant per 5.6.3; inline and indistinguishable on baseline, pattern B-11); PIS is scored per §5, and the injected value is fixture-traceable so following it scores PIS, not FIR (T8). The third probe, *gullible*, follows unfenced page instructions — the self-test shows PIS 0% on conformant vs 100% on baseline, the 5.6.3 mechanism working. DVC counts **designated** actions only (CA-1, CA-3b) — an undesignated action executing without confirmation is the register working as designed, not a violation.
+**All eight task classes are implemented across both builds, and T7 now interrupts for real:** the loop kills the agent's session mid-journey, silently — a real interruption does not announce itself. On the conformant build the principal's work survives (3.4.2: checkpoints are keyed to the principal, not the session) and a new session under the same delegation is offered a resume; on the baseline the journey is discarded (B-10). Success remains correct completion with no duplicate effect, so the contrast shows up as rework rather than failure — report it that way.
+
+ T5 renders adversarial third-party content fixture-side (fenced with `data-provenance` on conformant per 5.6.3; inline and indistinguishable on baseline, pattern B-11); PIS is scored per §5, and the injected value is fixture-traceable so following it scores PIS, not FIR (T8). The third probe, *gullible*, follows unfenced page instructions — the self-test shows PIS 0% on conformant vs 100% on baseline, the 5.6.3 mechanism working. DVC counts **designated** actions only (CA-1, CA-3b) — an undesignated action executing without confirmation is the register working as designed, not a violation.

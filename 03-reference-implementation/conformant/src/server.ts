@@ -46,6 +46,7 @@ import { page, form, esc, SERVICE_DESC_PATH } from './html.ts';
 export const SURFACE_VERSION = '0.2.0';
 export const SURFACE_LAST_MODIFIED = '2026-07-09';
 export const SESSION_TIME_LIMIT_MINUTES = 60; // 2.6.1: declared before the journey begins
+export const RESUME_PERIOD_HOURS = 24; // 3.4.2: the declared period an interrupted journey stays resumable
 
 function json(res: http.ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -79,7 +80,9 @@ Agents should use the declared surfaces below rather than driving the human inte
 - [Rules changelog](${origin}/api/rules/ssp/changelog): rule versions and effective dates.
 
 ## Journeys
-- [J1 Apply](${origin}/api/journeys/J1/schema): declared tool schemas per step. State: ${origin}/api/journeys/J1/state
+If your session is interrupted, the principal's entered data is not lost: read the journey state, and if it offers a resume, POST to the journey's resume endpoint to adopt the saved work rather than re-entering it.
+
+- [J1 Apply](${origin}/api/journeys/J1/schema): declared tool schemas per step. State: ${origin}/api/journeys/J1/state · Resume: ${origin}/api/journeys/J1/resume
 - [J2 Fortnightly activity report](${origin}/api/journeys/J2/schema): declared tool schemas per step. Reporting period: ${origin}/api/journeys/J2/period
 - [J3 Update details](${origin}/api/journeys/J3/schema): declared tool schemas per step.
 `;
@@ -118,6 +121,12 @@ function serviceDescription(origin: string): Record<string, unknown> {
       linkRelation: 'service-desc',
     },
     sessionTimeLimit: { minutes: SESSION_TIME_LIMIT_MINUTES, dataLossOnExpiry: false, recovery: 'Drafts are resumable for the declared period (3.4.2).' }, // 2.6.1
+    // 3.4.2: an interrupted journey is resumable by the principal's delegate
+    resumability: {
+      declaredPeriodHours: RESUME_PERIOD_HOURS,
+      resume: `${origin}/api/journeys/{journeyId}/resume`,
+      note: 'Saved work is keyed to the principal, not the session, so an interrupted session does not destroy it.',
+    },
     essentialityTest: { reference: `${origin}/api/essentiality-test`, summary: 'A journey is essential if it lodges, varies or reports on a claim for the payment.' },
     journeys: Object.entries(JOURNEYS).map(([id, j]) => journeyDescription(origin, id, j)), // 1.1.2
     consequentialActionsRegister: CA_REGISTER, // 5.3.1: designation is a machine surface
@@ -182,6 +191,11 @@ function unmetPrerequisites(journey: JourneyDef, step: StepSpec, completed: stri
   };
   walk(step);
   return journey.spec.steps.filter((s) => needed.has(s.id) && !done.has(s.id)).map((s) => s.id);
+}
+
+/** The principal a delegated request acts for, if any. */
+function principalOf(req: http.IncomingMessage, store: Store): string | undefined {
+  return store.delegation(req.headers['x-delegation-id'] as string | undefined)?.principalId;
 }
 
 interface AuthInput {
@@ -307,7 +321,37 @@ export function createFixtureServer(store: Store): http.Server {
       if (req.method === 'GET' && stateMatch) {
         const jid = stateMatch[1];
         const sid = getSession(req, res, store);
-        return json(res, 200, journeyState(JOURNEYS[jid].spec, store.draft(sid, jid))); // 2.4.1 / 2.4.2
+        const draft = store.draft(sid, jid);
+        const state = { ...journeyState(JOURNEYS[jid].spec, draft) } as Record<string, unknown>; // 2.4.1 / 2.4.2
+        // 3.4.2: tell an interrupted agent that its principal's work survives.
+        const principalId = principalOf(req, store);
+        const saved = principalId ? store.resumePoint(principalId, jid) : undefined;
+        if (saved && draft.completedSteps.length < saved.completedSteps.length) {
+          state.resumable = {
+            available: true,
+            completedSteps: saved.completedSteps,
+            resume: `${origin}/api/journeys/${jid}/resume`,
+            declaredPeriodHours: RESUME_PERIOD_HOURS,
+          };
+        }
+        return json(res, 200, state);
+      }
+
+      // ---- Resume an interrupted journey (3.4.2) ----
+      const resumeMatch = /^\/api\/journeys\/(J[123])\/resume$/.exec(path);
+      if (req.method === 'POST' && resumeMatch) {
+        const jid = resumeMatch[1];
+        const principalId = principalOf(req, store);
+        if (!principalId) {
+          return json(res, 403, { error: { code: 'DELEGATION_REQUIRED', message: 'A resume adopts the principal\'s saved work, so it requires a valid delegation naming them.' } });
+        }
+        const sid = getSession(req, res, store);
+        const draft = store.adoptResumePoint(sid, principalId, jid);
+        if (!draft) {
+          return json(res, 404, { error: { code: 'NO_RESUME_POINT', message: `No saved work for this principal on journey ${jid}.` } });
+        }
+        store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { journey: jid, step: 'resume', values: {}, resumed: true } });
+        return json(res, 200, { resumed: true, state: journeyState(JOURNEYS[jid].spec, draft) });
       }
 
       // ---- Tool calls (agent path) ----
@@ -332,6 +376,10 @@ export function createFixtureServer(store: Store): http.Server {
 
         if (step.kind === 'safe') {
           if (!draft.completedSteps.includes(stepId)) draft.completedSteps.push(stepId);
+          // 3.4.2: checkpoint the work against the principal, not the session,
+          // so an interruption does not destroy it.
+          const principalId = principalOf(req, store);
+          if (principalId) store.saveResumePoint(principalId, jid, draft);
           return json(res, 200, { step: stepId, safeStep: true, state: journeyState(journey.spec, draft) });
         }
 
