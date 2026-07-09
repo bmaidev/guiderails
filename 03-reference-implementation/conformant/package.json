@@ -1,0 +1,20 @@
+{
+  "name": "@guiderails/fixture-conformant",
+  "version": "0.1.0",
+  "description": "Conformant build of the fictional Commonwealth Skills Support Payment fixture (D-009): Guiderails AA feature set over the shared SSPD-2026 rules module. J1 (Apply) in this increment.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
