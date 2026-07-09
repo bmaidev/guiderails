@@ -44,6 +44,8 @@ export interface BaselineLogEvent {
  */
 export class BaselineStore {
   readonly guard = new DuplicateGuard();
+  /** T5: render the third-party notice block (harness-controlled; default off). */
+  injectionEnabled = false;
   readonly claims: BaselineClaim[] = [];
   readonly log: BaselineLogEvent[] = [];
   private readonly sessions = new Map<string, BaselineDraft>();

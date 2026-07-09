@@ -16,6 +16,7 @@
 | B-08 | Validation errors displayed as an unassociated banner; no programmatic association with the failing control, constraint unstated | 2.2.2 | **TO VERIFY** — S-xx pending |
 | B-09 | No journey-state exposure: current step, remaining steps and whether a consequential action has occurred are visual-only | 2.4.1, 2.4.2 | **TO VERIFY** — S-xx pending |
 | B-10 | Interruption discards the journey; no resume path | 3.4.2 | **TO VERIFY** — S-xx pending |
+| B-11 | Third-party or user-generated content rendered inline, programmatically indistinguishable from the service operator's own content | 5.6.3 | **TO VERIFY** — S-xx pending |
 
 ## Rules
 
@@ -25,8 +26,9 @@
 
 ## Open derivation tasks
 
-Ten tracked tasks: log S-xx register entries for B-01 through B-10, per the research protocol (each TO VERIFY item gets a tracked task; upgrade rather than accumulate).
+Eleven tracked tasks: log S-xx register entries for B-01 through B-11, per the research protocol (each TO VERIFY item gets a tracked task; upgrade rather than accumulate).
 
 ## Changelog
 
 - **2026-07-09:** v0.1 — initial catalogue B-01–B-10 seeded from BENCHMARK-METHODOLOGY.md §2; all derivations pending.
+- **2026-07-09:** v0.2 — B-11 added (unfenced third-party content, 5.6.3) with the T5 adversarial-content surface; derivation pending.

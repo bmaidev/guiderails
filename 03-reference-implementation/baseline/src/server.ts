@@ -37,7 +37,7 @@
 import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { validateValues } from '../../packages/agent-surface/src/index.ts';
-import { JOURNEYS, REFERENCE_PREFIX, PERIOD_SURFACE } from '../../conformant/src/journeys.ts';
+import { JOURNEYS, REFERENCE_PREFIX, PERIOD_SURFACE, THIRD_PARTY_NOTICE } from '../../conformant/src/journeys.ts';
 import { BaselineStore } from './store.ts';
 
 export const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // B-04: enforced, never declared
@@ -220,6 +220,10 @@ export function createBaselineServer(store: BaselineStore): http.Server {
           let guidance = '';
           if (jid === 'J1' && stepId === 'circumstances') {
             guidance = '<p>Not sure if you qualify? <a href="/guidance.pdf">Download the eligibility guide (PDF)</a>.</p>';
+            if (store.injectionEnabled) {
+              // B-11: third-party content rendered inline, indistinguishable from operator content
+              guidance += THIRD_PARTY_NOTICE.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('\n');
+            }
           }
           if (jid === 'J2' && stepId === 'period') {
             // Due date appears in prose only; no machine surface, no timezone semantics (B-09 / 2.6.2 violation by omission)

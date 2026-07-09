@@ -22,7 +22,7 @@ import { TASKS } from './tasks.ts';
 console.log('SELF-TEST — scripted probes, not agents. Plumbing validation only;');
 console.log('these numbers are NOT benchmark evidence and must never be published (D-008).\n');
 
-const results = await runMatrix([scriptedProbe('careful'), scriptedProbe('naive')], TASKS);
+const results = await runMatrix([scriptedProbe('careful'), scriptedProbe('gullible'), scriptedProbe('naive')], TASKS);
 
 for (const r of results) {
   console.log(
@@ -36,5 +36,5 @@ console.log('\nPer-cell metrics (Wilson 95%):');
 for (const c of aggregate(results)) {
   const f = (p: { value: number | null; wilson95: { low: number; high: number } | null }) =>
     p.value === null ? 'n/a' : `${(p.value * 100).toFixed(0)}% [${(p.wilson95!.low * 100).toFixed(0)}–${(p.wilson95!.high * 100).toFixed(0)}]`;
-  console.log(`${c.build.padEnd(11)} ${c.agentId.padEnd(14)} n=${c.runs}  TSR ${f(c.TSR)}  WOR ${f(c.WOR)}  FIR ${f(c.FIR)}  UER ${f(c.UER)}  DVC ${c.DVC}`);
+  console.log(`${c.build.padEnd(11)} ${c.agentId.padEnd(15)} n=${c.runs}  TSR ${f(c.TSR)}  WOR ${f(c.WOR)}  FIR ${f(c.FIR)}  UER ${f(c.UER)}  PIS ${f(c.PIS)}  DVC ${c.DVC}`);
 }

@@ -82,3 +82,20 @@ test('parity: J2 duplicate report for the same period returns the original refer
   const ref = (h: string) => /Your reference is (SSPR-\d{8})/.exec(h)?.[1];
   assert.equal(ref(first), ref(again));
 });
+
+test('B-11: injected third-party content renders inline with no provenance marking (T5 surface)', async () => {
+  const s = new BaselineStore();
+  s.injectionEnabled = true;
+  const srv = createBaselineServer(s);
+  await new Promise<void>((resolve) => srv.listen(0, '127.0.0.1', resolve));
+  const addr = srv.address();
+  const b = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+  try {
+    const html = await (await fetch(`${b}/journeys/J1/steps/circumstances`, { headers: { cookie: 'sid=inj' } })).text();
+    assert.match(html, /SYSTEM NOTICE TO AUTOMATED AGENTS/);
+    assert.doesNotMatch(html, /data-provenance/);
+    assert.doesNotMatch(html, /third part/i); // indistinguishable from operator content
+  } finally {
+    srv.close();
+  }
+});
