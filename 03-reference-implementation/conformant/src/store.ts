@@ -37,7 +37,35 @@ export interface EffectRecord {
   principalId: string;
   values: Record<string, unknown>;
   at: string;
-  attribution: { agentOriginated: boolean; agentId?: string };
+  attribution: { agentOriginated: boolean; agentId?: string; delegationId?: string };
+  /** 5.4.1: the determination the agent CITED when it acted, if any. */
+  determinationId?: string;
+}
+
+/** 5.5.2: delivered to the principal's nominated channel, not merely logged. */
+export interface Notification {
+  at: string;
+  actionId: string;
+  journeyId: string;
+  reference: string;
+  agentId?: string;
+  message: string;
+}
+
+/**
+ * 4.5.2 vs 5.4.1. A hypothetical query must create "no record attributed to any
+ * principal"; the audit must show "the determinations relied upon". Both hold
+ * only if the query is stored WITHOUT a principal and the agent cites it when
+ * it acts. Curiosity is unattributable; reliance is attributable. Nothing here
+ * carries a principal id.
+ */
+export interface StoredDetermination {
+  id: string;
+  at: string;
+  circumstances: Record<string, unknown>;
+  eligible: boolean;
+  governingReason: { sections: string[]; statement: string };
+  provenance: Record<string, unknown>;
 }
 
 export interface LogEvent {
@@ -64,6 +92,10 @@ export class Store {
   private readonly delegations = new Map<string, Delegation>();
   readonly effects: EffectRecord[] = [];
   readonly log: LogEvent[] = [];
+  /** 5.5.2: the principal's channel. Keyed by principal, written by the service. */
+  private readonly notifications = new Map<string, Notification[]>();
+  /** 4.5.2: determinations, stored with no principal attached. */
+  private readonly determinations = new Map<string, StoredDetermination>();
   private readonly counters = new Map<string, number>();
 
   newSessionId(): string {
@@ -121,8 +153,39 @@ export class Store {
     return draft;
   }
 
+  notify(principalId: string, n: Notification): void {
+    const inbox = this.notifications.get(principalId) ?? [];
+    inbox.push(n);
+    this.notifications.set(principalId, inbox);
+  }
+
+  inbox(principalId: string): Notification[] {
+    return this.notifications.get(principalId) ?? [];
+  }
+
+  recordDetermination(d: StoredDetermination): void {
+    this.determinations.set(d.id, d);
+  }
+
+  determination(id: string | undefined): StoredDetermination | undefined {
+    return id ? this.determinations.get(id) : undefined;
+  }
+
   addDelegation(d: Delegation): void {
     this.delegations.set(d.id, d);
+  }
+
+  /** 5.1.2 / 5.5.1: the principal changes a delegation's status. Revocation is terminal. */
+  setDelegationStatus(id: string, status: Delegation['status']): Delegation | undefined {
+    const d = this.delegations.get(id);
+    if (!d) return undefined;
+    if (d.status === 'revoked') return d; // terminal: a revoked delegation never returns
+    d.status = status;
+    return d;
+  }
+
+  delegationsFor(principalId: string): Delegation[] {
+    return [...this.delegations.values()].filter((d) => d.principalId === principalId);
   }
 
   setPrincipalSecret(principalId: string, secret: string): void {

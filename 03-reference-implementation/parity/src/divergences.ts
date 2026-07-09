@@ -69,6 +69,9 @@ export const DECLARED_DIVERGENCES: Divergence[] = [
   { id: 'CF-attribution', kind: 'conformance', description: 'Agent-originated submissions flagged in service records (5.2.1).' },
   { id: 'CF-provenance', kind: 'conformance', description: 'Third-party content fenced with a provenance marker (5.6.3).' },
   { id: 'CF-period', kind: 'conformance', description: 'J2 reporting-period surface with explicit timezone semantics (2.6.2).' },
+  { id: 'CF-audit', kind: 'conformance', description: 'Principal-channel audit record of agent actions, plain-language and machine-readable, with the determinations relied upon and a contestability statement (5.4.1, 5.4.2).' },
+  { id: 'CF-notifications', kind: 'conformance', description: 'Notification of each agent-executed consequential action, delivered to the principal\'s channel (5.5.2).' },
+  { id: 'CF-delegation-lifecycle', kind: 'conformance', description: 'The principal suspends, revokes or reinstates a delegation through an always-available channel; revocation is terminal and takes effect before any further consequential action (5.1.2, 5.5.1).' },
   { id: 'CF-resume', kind: 'conformance', description: 'Resume of an interrupted journey: work is checkpointed against the principal, not the session, and adopted by a new session under the same delegation for a declared period (3.4.2). The baseline discards the journey (B-10).' },
 
   // 3. Derived: forced by a catalogued pattern, not chosen.

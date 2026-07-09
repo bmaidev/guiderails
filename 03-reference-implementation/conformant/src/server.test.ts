@@ -175,7 +175,7 @@ test('happy path: confirmed submit succeeds with reference, attribution and stat
   const d1 = await first.json() as any;
   assert.match(d1.consequentialAction.reference, /^SSP-\d{8}$/);
   assert.equal(d1.duplicate, false);
-  assert.deepEqual(d1.attribution, { agentOriginated: true, agentId: 'agent-alpha' }); // 5.2.1
+  assert.deepEqual(d1.attribution, { agentOriginated: true, agentId: 'agent-alpha', delegationId: 'DLG-T' }); // 5.2.1
 
   // The duplicate guard must answer before the token is re-checked: a retried
   // submit is the same effect, not a second confirmation.
