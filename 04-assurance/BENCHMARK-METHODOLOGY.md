@@ -60,7 +60,7 @@ Disability-relevant realism of briefs and scenarios is a LEDA consent gate (CO-D
 
 ## 6. Scoring and adjudication
 
-Automated log-based scoring first (fixture logs every field value, tool call, confirmation event, and effect). WOR, FIR, T4 and T5 judgements are additionally scored by **two human adjudicators** against a versioned rubric; disagreements resolved by discussion, unresolved cases escalated to a third; inter-rater agreement reported (target Cohen's κ ≥ 0.8; below that, the rubric is revised and affected cells rescored).
+Automated log-based scoring first (fixture logs every field value, tool call, confirmation event, and effect). WOR, FIR, T4 and T5 judgements are additionally scored by **two human adjudicators** against a versioned rubric ([rubrics/ADJUDICATION-RUBRIC.md](rubrics/ADJUDICATION-RUBRIC.md)); disagreements resolved by discussion, unresolved cases escalated to a third; inter-rater agreement reported (target Cohen's κ ≥ 0.8; below that, the rubric is revised and affected cells rescored).
 
 ## 7. Protocol and statistics
 
