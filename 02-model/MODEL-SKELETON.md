@@ -2,6 +2,8 @@
 
 **Status:** working draft, 9 July 2026. This is the load-bearing structure of the standard: architecture, definitions, conformance model, the five principles with draft guidelines, and *exemplar* success criteria showing the intended shape and testability bar. The full criteria set is Phase 1 work.
 
+> *(Project renamed to Guiderails on 9 July 2026 — D-002. Historical text below retains the original working name.)*
+
 ---
 
 ## 1. Architecture

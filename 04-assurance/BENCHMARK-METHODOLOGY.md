@@ -22,7 +22,7 @@
 
 **Two builds, functional parity:**
 - **Baseline** replicates prevalent current practice, documented pattern-by-pattern from real public services (patterns catalogued, sources logged): div-based controls with placeholder-only labels, meaning carried by layout, PDF-only guidance, session timeout without warning, challenge gate on submission, no rules endpoint, no delegation or attribution.
-- **Conformant** implements Kerbcut AA on the same journeys: WCAG 2.2 AA interface; declared tools (WebMCP-class declarative + imperative); rules endpoint with provenance and binding/indicative labelling; scoped delegation, confirmation checkpoint, duplicate protection, resumability, agent attribution.
+- **Conformant** implements Guiderails AA on the same journeys: WCAG 2.2 AA interface; declared tools (WebMCP-class declarative + imperative); rules endpoint with provenance and binding/indicative labelling; scoped delegation, confirmation checkpoint, duplicate protection, resumability, agent attribution.
 
 **Parity requirements (audited by someone other than the builders):** identical outcomes for identical inputs; identical rule logic; identical informational content in meaning; differences confined to conformance features. Parity audit report is published with results.
 

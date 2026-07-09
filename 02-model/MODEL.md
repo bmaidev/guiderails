@@ -1,4 +1,4 @@
-# Kerbcut — the standard
+# Guiderails — the standard
 
 **Version 0.2 (full draft criteria set) — 9 July 2026.** Supersedes the v0.1 skeleton (retained as MODEL-SKELETON.md for history). Numbering from v0.1 is stable; v0.2 adds guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 and their criteria.
 
@@ -40,7 +40,7 @@ Terms defined in v0.1 carry forward: **principal**, **agent**, **delegation**, *
 - **AA — Operable.** Essential journeys are completable end-to-end through declared machine surfaces; essential eligibility questions are computable with legal provenance; delegation, notification, audit and equitable treatment are fully functional. **AA is the intended target for essential government services.**
 - **AAA — Exemplar.** All journeys operable; determinations explainable to rule-and-input level; journey contracts published as machine-readable workflow descriptions; structured whole-of-journey submission; review-before-execute delegation; change subscription.
 
-**Prerequisite.** WCAG 2.2 AA conformance of the journey's human interface is Level A criterion 2.1.1. No Kerbcut level is achievable without it.
+**Prerequisite.** WCAG 2.2 AA conformance of the journey's human interface is Level A criterion 2.1.1. No Guiderails level is achievable without it.
 
 **Claims.** A conformance claim states: journeys in scope; level; standard version; audit date; benchmark evidence reference (AA and above, per §7); and the named accountable owner. Claims are made per journey; per-criterion claims are not recognised. The claim itself is published as a machine surface referenced from the service description (1.1.1).
 
@@ -189,7 +189,7 @@ Terms defined in v0.1 carry forward: **principal**, **agent**, **delegation**, *
 
 ## 6. Instrument mapping (v0.2)
 
-| Kerbcut element | Composes with | Relationship |
+| Guiderails element | Composes with | Relationship |
 |---|---|---|
 | 2.1.1 | WCAG 2.2 AA; DXP Digital Inclusion Standard | Direct incorporation |
 | 1.x | schema.org; llms.txt; `.well-known`; DXP Digital Access Standard | Profiles / implements intent |
@@ -208,5 +208,7 @@ Conformance at AA and above requires benchmark evidence produced under [../04-as
 ## 8. Change log and open questions
 
 **v0.1 → v0.2:** added guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 (30 new criteria; total 51: 18 A, 27 AA, 6 AAA). Resolved Q6: Level A remains safety-only; the minimal declared-tool surface begins at AA. Q7 provisionally answered (90 days) pending consultation.
+
+**2026-07-09:** project renamed Kerbcut → Guiderails (D-002); no normative changes.
 
 **Carried open questions:** Q1 delegation profile for Australia (legal issues brief, Issue 2); Q2 DDA status of agent access (Issue 1; OD-04); Q3 fraud-control interaction patterns for 3.3 (Issue 5); Q4 privacy analysis of hypothetical queries (Issue 3); Q5 machine format of conformance claims. **New:** Q8 — whether 5.5.2 notification should be A rather than AA for designated high-consequence actions; to be tested in co-design.

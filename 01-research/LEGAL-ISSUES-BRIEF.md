@@ -28,7 +28,7 @@ Screen readers are uncontroversially within this territory. The live question is
 
 **Existing delegation rails to map:** statutory nominee arrangements (e.g. correspondence and payment nominees under social security administration law), myGov account and linking arrangements, and the accreditation architecture of the **Digital ID Act 2024 (Cth)** as a potential future rail for verifiable, scoped delegation **[TO VERIFY current scope — the Act accredits identity services; whether and how delegation/authorisation attaches is a counsel question]**.
 
-**Drafting consequence already taken:** criterion 5.3.1 keeps a human confirmation event at designated consequential actions — deliberately preserving a personal act where statutes expect one — and 5.1/5.5 make every delegation scoped, revocable and attributable, so the attribution question is answered by design rather than litigated after the fact. The standard's working assumption, to be tested with counsel: **an agent under a Kerbcut delegation is legally closer to a lodgement channel plus a nominee than to an autonomous decision-maker.**
+**Drafting consequence already taken:** criterion 5.3.1 keeps a human confirmation event at designated consequential actions — deliberately preserving a personal act where statutes expect one — and 5.1/5.5 make every delegation scoped, revocable and attributable, so the attribution question is answered by design rather than litigated after the fact. The standard's working assumption, to be tested with counsel: **an agent under a Guiderails delegation is legally closer to a lodgement channel plus a nominee than to an autonomous decision-maker.**
 
 ## Issue 3 — Privacy
 
