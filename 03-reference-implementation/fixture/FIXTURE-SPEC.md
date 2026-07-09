@@ -101,6 +101,10 @@ Fixture accepts uploads up to 10 MB; all sample evidence files are generated, fi
 
 Entities: **Principal** (identity, contact, residency start date, date of birth) · **Claim** (circumstances, evidence refs, status: draft → submitted → determined; claim reference) · **ActivityReport** (period, income, attendance, status, report reference) · **DetailsChange** (type, old/new values, reference) · **Delegation** (conformant only: principal, agent identifier, journeys and actions in scope, validity window, status: active/suspended/revoked) · **EventLog** (§7).
 
+## 5a. Discovery surface (conformant build; 1.1.4)
+
+`/llms.txt` at the service root identifies the canonical service description, the authoritative rules endpoint (with an explicit instruction not to infer eligibility from prose guidance) and each journey's declared-tool schema. Every human-facing journey page carries a `service-desc` link relation (RFC 8631) in its `<head>` and an equivalent RFC 8288 `Link` header, so the machine surfaces are reachable without prior knowledge of any path. The baseline publishes neither (pattern B-12).
+
 ## 6. Rules endpoint contract (conformant build; 4.1, 4.2, 4.4, 4.5)
 
 - `POST /api/rules/ssp/determination` with declared circumstance inputs: `dateOfBirth` or `ageYears`, `residencyWeeks`, `studyLoadEFT`, `courseWeeks`, `enrolmentStatus`, `fortnightlyIncome`, optional `effectiveDate` (defaults to current date; past dates accepted back to instrument commencement — 4.4.1).

@@ -165,3 +165,34 @@ test('5.6.3: injected third-party content is fenced and provenance-marked (T5 su
     srv.close();
   }
 });
+
+test('1.1.4: /llms.txt names the service description, rules endpoint and journey schemas', async () => {
+  const r = await fetch(`${base}/llms.txt`);
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('content-type') ?? '', /text\/plain/);
+  assert.match(r.headers.get('link') ?? '', /rel="service-desc"/);
+  const text = await r.text();
+  assert.match(text, /\/\.well-known\/guiderails\.json/);
+  assert.match(text, /\/api\/rules\/ssp\/determination/);
+  assert.match(text, /Do not infer eligibility from prose guidance/);
+  for (const j of ['J1', 'J2', 'J3']) assert.ok(text.includes(`/api/journeys/${j}/schema`), j);
+});
+
+test('1.1.4: every human-facing journey page carries the service-desc link relation, in head and header', async () => {
+  for (const p of ['/journeys/J1/steps/identity', '/journeys/J2/steps/period', '/journeys/J3/steps/contact']) {
+    const r = await fetch(`${base}${p}`, { headers: { cookie: 'sid=disco' } });
+    assert.match(r.headers.get('link') ?? '', /<\/\.well-known\/guiderails\.json>; rel="service-desc"/, p);
+    const html = await r.text();
+    assert.match(html, /<link rel="service-desc" type="application\/json" href="\/\.well-known\/guiderails\.json">/, p);
+    assert.match(html, /<link rel="describedby" type="text\/plain" href="\/llms\.txt">/, p);
+  }
+});
+
+test('1.1.3: the discovery surfaces agree on one canonical service description', async () => {
+  const d = await (await fetch(`${base}/.well-known/guiderails.json`)).json() as any;
+  assert.ok(d.discovery.serviceDescription.endsWith('/.well-known/guiderails.json'));
+  assert.ok(d.discovery.agentDiscoveryFile.endsWith('/llms.txt'));
+  assert.equal(d.discovery.linkRelation, 'service-desc');
+  const llms = await (await fetch(`${base}/llms.txt`)).text();
+  assert.ok(llms.includes(d.discovery.serviceDescription));
+});

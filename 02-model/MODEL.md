@@ -1,8 +1,8 @@
 # Guiderails — the standard
 
-**Version 0.2 (full draft criteria set) — 9 July 2026.** Supersedes the v0.1 skeleton (retained as MODEL-SKELETON.md for history). Numbering from v0.1 is stable; v0.2 adds guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 and their criteria.
+**Version 0.3 — 9 July 2026.** Supersedes the v0.1 skeleton (retained as MODEL-SKELETON.md for history). Numbering from v0.1 is stable; v0.2 added guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 and their criteria; v0.3 adds criterion 1.1.4 (D-014).
 
-**Contents:** §1 architecture · §2 normative language · §3 definitions · §4 conformance model · §5 the five principles and 51 success criteria · §6 instrument mapping · §7 assurance · §8 change log and open questions.
+**Contents:** §1 architecture · §2 normative language · §3 definitions · §4 conformance model · §5 the five principles and 52 success criteria · §6 instrument mapping · §7 assurance · §8 change log and open questions.
 
 ---
 
@@ -58,6 +58,7 @@ Terms defined in v0.1 carry forward: **principal**, **agent**, **delegation**, *
 - **1.1.1 (A)** A machine-readable service description is available at a well-known location and states: service name; administering authority; purpose; canonical entry point; and the version of this standard claimed.
 - **1.1.2 (AA)** The service description enumerates the service's essential journeys and, for each: its entry point, its consequential-actions register, and its essentiality-test reference.
 - **1.1.3 (AA)** Where multiple discovery surfaces are published (root summary file, well-known manifest, embedded structured data), each identifies the same canonical service description, and their overlapping content does not conflict.
+- **1.1.4 (A)** The service description is discoverable without prior knowledge of its location. The service operator publishes a root-level agent-discovery file that identifies the service description, and every human-facing page of an essential journey references the service description through a machine-readable link relation.
 
 **Guideline 1.2 — Capability discovery.**
 - **1.2.1 (AA)** All declared tools and rules endpoints for a journey are discoverable from the service description without navigation, authentication, or side effects.
@@ -72,7 +73,7 @@ Terms defined in v0.1 carry forward: **principal**, **agent**, **delegation**, *
 **Guideline 1.5 — Authenticity.**
 - **1.5.1 (AA)** The service description is served from the administering authority's verified domain and, where an authoritative whole-of-government service register exists, references its entry in that register.
 
-*Techniques (informative):* schema.org/GovernmentService; llms.txt; `.well-known` service manifests; sitemaps; government domain policies. *Rationale:* discovery failures are silent — an agent that finds an impersonating or stale surface fails the principal before the journey begins.
+*Techniques (informative):* schema.org/GovernmentService; llms.txt (1.1.4's root file); IANA `service-desc` link relation (RFC 8631) and HTTP `Link` headers (RFC 8288); `.well-known` service manifests; sitemaps; government domain policies. *Rationale:* discovery failures are silent — an agent that finds an impersonating or stale surface fails the principal before the journey begins. 1.1.4 exists because a machine surface an agent cannot locate confers nothing: an agent that lands on the human interface and cannot find its way to the service description falls back to interpreting the page, and every downstream guarantee — the consequential-actions register, confirmation designations, rules provenance — becomes unreachable. Discoverability is therefore a Level A (safety) property, not merely an operability one.
 
 ### Principle 2 — Legible
 
@@ -210,5 +211,7 @@ Conformance at AA and above requires benchmark evidence produced under [../04-as
 **v0.1 → v0.2:** added guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 (30 new criteria; total 51: 18 A, 27 AA, 6 AAA). Resolved Q6: Level A remains safety-only; the minimal declared-tool surface begins at AA. Q7 provisionally answered (90 days) pending consultation.
 
 **2026-07-09:** project renamed Kerbcut → Guiderails (D-002); no normative changes.
+
+**v0.2 → v0.3 (2026-07-09):** added criterion **1.1.4 (A)** — service-description discoverability without prior knowledge of its location (D-014). Totals: 52 criteria (19 A, 27 AA, 6 AAA). No existing criterion changed, renumbered or weakened; prime directive 3 does not apply (the change strengthens Level A). Assurance implication: the reference implementation's conformant build must publish the discovery file and link relation, and the baseline's absence of them is catalogued as a benchmark pattern.
 
 **Carried open questions:** Q1 delegation profile for Australia (legal issues brief, Issue 2); Q2 DDA status of agent access (Issue 1; OD-04); Q3 fraud-control interaction patterns for 3.3 (Issue 5); Q4 privacy analysis of hypothetical queries (Issue 3); Q5 machine format of conformance claims. **New:** Q8 — whether 5.5.2 notification should be A rather than AA for designated high-consequence actions; to be tested in co-design.
