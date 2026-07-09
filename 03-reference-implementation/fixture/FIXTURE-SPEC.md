@@ -119,7 +119,19 @@ Both builds log, with timestamps and run-scoped session identifiers: every submi
 
 ## 8. Where the builds diverge (parity boundary)
 
-Identical in both builds: rule logic (shared module), outcomes for identical inputs, informational content in meaning, data model, rate/threshold/deadline parameters, reference-identifier formats. Divergences are confined to the conformance features listed in BENCHMARK-METHODOLOGY.md §2 and enumerated pattern-by-pattern in [`../parity/PATTERN-CATALOGUE.md`](../parity/PATTERN-CATALOGUE.md): the baseline exhibits the catalogued anti-patterns; the conformant build implements the Guiderails AA feature set on the same journeys. Any behavioural difference not traceable to a catalogued pattern or a listed conformance feature is a parity defect.
+Identical in both builds: rule logic (shared module), outcomes for identical inputs, informational content in meaning, data model, rate/threshold/deadline parameters, reference-identifier formats. Any behavioural difference not accounted for below is a **parity defect**.
+
+Divergences come in three kinds. The third is the one an audit misses.
+
+1. **Catalogued patterns** — the baseline exhibits the anti-patterns B-01…B-12, each with a logged real-world derivation in [`../parity/PATTERN-CATALOGUE.md`](../parity/PATTERN-CATALOGUE.md).
+2. **Conformance features** — the conformant build implements the Guiderails AA feature set on the same journeys (BENCHMARK-METHODOLOGY.md §2).
+3. **Derived divergences** — differences *forced* by a catalogued pattern rather than chosen. When a pattern removes a concept, everything keyed on that concept must change with it. These look exactly like defects to an auditor, so each is enumerated:
+
+| ID | Caused by | Divergence |
+|---|---|---|
+| DV-duplicate-scope | B-07 | **Duplicate-protection key scope.** The register scopes CA-1 to one claim per principal, CA-2 to one report per principal per period, and CA-3x to idempotence per principal per value-set. B-07 removes the principal from the baseline entirely, so the baseline cannot key on one: it degrades to applicant identity (CA-1) and session (CA-2, CA-3x). Duplicate protection itself is retained and behaves identically for a repeated identical submission. Only the scope of "the same submission" differs — and observably: one session submitting two *different* applicants records one effect on the conformant build and two on the baseline; two sessions submitting the *same* applicant record two on the conformant build and one on the baseline. |
+
+The machine-checkable portion of the parity audit lives in [`../parity/`](../parity/) (`npm test`, `npm run report`). It does not replace the independent audit — a person who built neither build must read both and sign — but it fails CI the moment the builds drift apart, which no once-per-round manual read can do.
 
 ## 9. Open items
 
