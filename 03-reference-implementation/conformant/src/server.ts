@@ -22,6 +22,7 @@
  */
 
 import http from 'node:http';
+import { randomUUID } from 'node:crypto';
 import {
   formJsonSchema,
   validateValues,
@@ -75,8 +76,11 @@ Agents should use the declared surfaces below rather than driving the human inte
 - [Service description](${origin}${SERVICE_DESC_PATH}): canonical machine-readable description — journeys, tools, consequential-actions register, rules endpoints.
 - [Essentiality test](${origin}/api/essentiality-test): how the operator classifies a journey as essential.
 
+## The principal's channel (you cannot use these)
+- Audit record, notifications, and delegation control belong to the principal, not to you. Requests bearing agent identity are refused. Your principal can see every action you take on their behalf, and can suspend or revoke your delegation at any time.
+
 ## Rules (authoritative)
-- [Eligibility determination](${origin}/api/rules/ssp/determination): POST declared circumstances, receive a determination with its governing reason, legal provenance and binding/indicative status. Authoritative. Do not infer eligibility from prose guidance.
+- [Eligibility determination](${origin}/api/rules/ssp/determination): POST declared circumstances, receive a determination with its governing reason, legal provenance and binding/indicative status. Authoritative. Do not infer eligibility from prose guidance. The response carries a determinationId: present it with a consequential action so your principal's audit record shows what you relied on.
 - [Rules changelog](${origin}/api/rules/ssp/changelog): rule versions and effective dates.
 
 ## Journeys
@@ -130,6 +134,14 @@ function serviceDescription(origin: string): Record<string, unknown> {
     essentialityTest: { reference: `${origin}/api/essentiality-test`, summary: 'A journey is essential if it lodges, varies or reports on a claim for the payment.' },
     journeys: Object.entries(JOURNEYS).map(([id, j]) => journeyDescription(origin, id, j)), // 1.1.2
     consequentialActionsRegister: CA_REGISTER, // 5.3.1: designation is a machine surface
+    // The principal's own channel — an agent cannot reach any of these (5.4.1, 5.5.1, 5.5.2).
+    principalChannel: {
+      audit: `${origin}/api/audit`,
+      notifications: `${origin}/api/notifications`,
+      delegations: `${origin}/api/delegations`,
+      suspendOrRevoke: `${origin}/api/delegations/{delegationId}/{suspend|revoke|reinstate}`,
+      note: 'Revocation is terminal and takes effect before any further consequential action.',
+    },
     // 5.3.2: how a designated action is confirmed. Agents redeem; only the principal obtains.
     confirmationChannel: {
       issue: `${origin}/api/confirmations`,
@@ -203,6 +215,8 @@ interface AuthInput {
   delegationId?: string;
   confirmation?: ConfirmationEvent;
   humanPrincipalId?: string;
+  /** 5.4.1: the determination the agent cites as the basis for acting. */
+  determinationId?: string;
 }
 
 export function createFixtureServer(store: Store): http.Server {
@@ -232,6 +246,70 @@ export function createFixtureServer(store: Store): http.Server {
           test: 'A journey is essential if it lodges, varies or reports on a claim for the payment.',
           classifications: Object.keys(JOURNEYS).map((journey) => ({ journey, essential: true })),
         });
+      }
+
+      // ---- The principal's own channel: 5.4.1 audit, 5.5.2 notifications, 5.5.1 control ----
+      const principalChannel = /^\/api\/(notifications|audit|delegations)/.test(path);
+      if (principalChannel) {
+        if (req.headers['x-agent-id'] || req.headers['x-delegation-id']) {
+          return json(res, 403, { error: { code: 'PRINCIPAL_CHANNEL', message: 'This channel belongs to the principal. An agent cannot read their audit record, their notifications, or alter their delegations.' } });
+        }
+        const principalId = store.principalForSecret(req.headers['x-principal-secret'] as string | undefined);
+        if (!principalId) {
+          return json(res, 401, { error: { code: 'PRINCIPAL_AUTHENTICATION_REQUIRED', message: 'Only the authenticated principal may use this channel.' } });
+        }
+
+        // 5.5.2 — delivered, not merely logged.
+        if (req.method === 'GET' && path === '/api/notifications') {
+          return json(res, 200, { principalId, notifications: store.inbox(principalId) });
+        }
+
+        // 5.4.1 — complete, plain-language AND machine-readable; 5.4.2 — contestable.
+        if (req.method === 'GET' && path === '/api/audit') {
+          const entries = store.effects.filter((e) => e.principalId === principalId).map((e) => {
+            const det = store.determination(e.determinationId);
+            return {
+              at: e.at,
+              journeyId: e.journeyId,
+              actionId: e.actionId,
+              reference: e.reference,
+              agent: e.attribution.agentOriginated ? { id: e.attribution.agentId, delegationId: e.attribution.delegationId } : null,
+              determinationReliedUpon: det
+                ? { id: det.id, at: det.at, eligible: det.eligible, governingReason: det.governingReason, provenance: det.provenance }
+                : null,
+              plainLanguage: e.attribution.agentOriginated
+                ? `On ${e.at}, your agent ${e.attribution.agentId} carried out "${CA_REGISTER.find((a) => a.id === e.actionId)?.title ?? e.actionId}" on your behalf. Reference ${e.reference}.${det ? ` It relied on a determination that you were ${det.eligible ? 'eligible' : 'ineligible'} (${det.governingReason.sections.join(', ')}).` : ' It cited no determination.'}`
+                : `On ${e.at}, you carried out "${CA_REGISTER.find((a) => a.id === e.actionId)?.title ?? e.actionId}". Reference ${e.reference}.`,
+            };
+          });
+          return json(res, 200, {
+            principalId,
+            entries,
+            // 5.4.2: same review channels, same terms, however the outcome was produced.
+            contestability: 'Every outcome above is reviewable through the same channels, and on the same terms, as an outcome produced without an agent.',
+          });
+        }
+
+        // 5.1.2 / 5.5.1 — an always-available channel; revocation is terminal.
+        if (req.method === 'GET' && path === '/api/delegations') {
+          return json(res, 200, { principalId, delegations: store.delegationsFor(principalId) });
+        }
+        const lifecycle = /^\/api\/delegations\/([\w-]+)\/(suspend|revoke|reinstate)$/.exec(path);
+        if (req.method === 'POST' && lifecycle) {
+          const [, delegationId, action] = lifecycle;
+          const existing = store.delegation(delegationId);
+          if (!existing || existing.principalId !== principalId) {
+            return json(res, 404, { error: { code: 'UNKNOWN_DELEGATION', message: 'No such delegation of yours.' } });
+          }
+          if (existing.status === 'revoked') {
+            return json(res, 409, { error: { code: 'DELEGATION_REVOKED', message: 'A revoked delegation is terminal and cannot be reinstated. Issue a new one.' } });
+          }
+          const status = action === 'suspend' ? 'suspended' : action === 'revoke' ? 'revoked' : 'active';
+          const updated = store.setDelegationStatus(delegationId, status);
+          store.record({ at: now(), sessionId: 'principal-channel', type: 'confirmation', detail: { delegationId, principalId, statusChange: status, channel: 'principal-channel' } });
+          return json(res, 200, { delegation: updated, effectiveImmediately: true });
+        }
+        return json(res, 404, { error: { code: 'NOT_FOUND', message: `No resource at ${path}.` } });
       }
 
       // ---- Confirmation channel (5.3.2): principal-only, agent-unreachable ----
@@ -283,7 +361,20 @@ export function createFixtureServer(store: Store): http.Server {
         store.record({ at: now(), sessionId: 'anonymous', type: 'rules-query', detail: { inputs: body } }); // 4.5.2: no principal attribution
         try {
           const determination = determine(body.circumstances ?? {}, { effectiveDate: body.effectiveDate });
-          return json(res, 200, determination);
+          // 4.5.2 holds: this record carries no principal. 5.4.1 is served by the
+          // agent CITING this id when it acts — reliance is attributable, curiosity is not.
+          const id = `det_${randomUUID()}`;
+          store.recordDetermination({
+            id, at: now(), circumstances: body.circumstances ?? {},
+            eligible: determination.eligible,
+            governingReason: determination.governingReason,
+            provenance: determination.provenance as unknown as Record<string, unknown>,
+          });
+          return json(res, 200, {
+            determinationId: id,
+            citeWhenActing: 'Present determinationId with a consequential action so the principal\'s audit record shows what you relied on (5.4.1). Doing so attributes your reliance, not this query (4.5.2).',
+            ...determination,
+          });
         } catch (e) {
           if (e instanceof RulesInputError) {
             return json(res, 400, { error: { code: 'INVALID_CIRCUMSTANCES', message: e.message } });
@@ -387,6 +478,7 @@ export function createFixtureServer(store: Store): http.Server {
           agentId: (req.headers['x-agent-id'] as string) ?? undefined,
           delegationId: (req.headers['x-delegation-id'] as string) ?? undefined,
           confirmation: body.confirmation,
+          determinationId: body.determinationId, // 5.4.1: what the agent relied on
         }, now());
       }
 
@@ -505,7 +597,7 @@ function executeConsequential(
   }
 
   let principalId: string;
-  let attribution: { agentOriginated: boolean; agentId?: string };
+  let attribution: { agentOriginated: boolean; agentId?: string; delegationId?: string };
 
   if (auth.humanPrincipalId) {
     // Principal acting directly; the posted declaration is the confirmation event.
@@ -545,17 +637,32 @@ function executeConsequential(
       return json(res, 403, body); // 5.1.1: safe, legible rejection
     }
     principalId = result.principalId;
-    attribution = result.attribution;
+    attribution = { ...result.attribution, delegationId: auth.delegationId };
     if (action.confirmationDesignated) {
       store.record({ at, sessionId: sid, type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'principal-channel', redeemedBy: auth.agentId } });
     }
   }
 
+  // 5.4.1: an agent may only cite a determination the service actually issued.
+  const cited = store.determination(auth.determinationId);
+  if (auth.determinationId && !cited) {
+    return json(res, 400, { error: { code: 'UNKNOWN_DETERMINATION', message: `No determination "${auth.determinationId}" was issued by this service.` } });
+  }
+
   // 3.4.1: duplicate protection per the register; repeats return the original effect
   const outcome = store.guard.execute(duplicateKey(action.id, principalId, values), () => {
     const reference = store.nextReference(REFERENCE_PREFIX[action.id]);
-    store.effects.push({ journeyId: jid, actionId: action.id, reference, principalId, values: { ...draft.values }, at, attribution });
-    store.record({ at, sessionId: sid, type: 'effect', detail: { actionId: action.id, reference, attribution, notificationQueued: true } }); // 5.5.2 obligation recorded
+    store.effects.push({ journeyId: jid, actionId: action.id, reference, principalId, values: { ...draft.values }, at, attribution, determinationId: cited?.id });
+    store.record({ at, sessionId: sid, type: 'effect', detail: { actionId: action.id, reference, attribution, determinationId: cited?.id } });
+
+    // 5.5.2: notify the principal through their own channel. Delivered, not queued —
+    // an obligation recorded in a log the principal cannot read is not a notification.
+    if (attribution.agentOriginated) {
+      store.notify(principalId, {
+        at, actionId: action.id, journeyId: jid, reference, agentId: attribution.agentId,
+        message: `Your agent ${attribution.agentId} carried out "${action.title}" on your behalf. Reference ${reference}. If you did not intend this, you can suspend or revoke the delegation at any time.`,
+      });
+    }
     return { reference, at };
   });
 

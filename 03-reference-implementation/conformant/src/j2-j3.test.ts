@@ -36,6 +36,13 @@ before(async () => {
     scope: { journeys: ['J2'], actions: ['CA-2'] },
     validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active',
   });
+  for (const id of ['DLG-REVOKE', 'DLG-SUSPEND']) {
+    store.addDelegation({
+      id, principalId: 'P1', agentId: 'agent-alpha',
+      scope: { journeys: ['J1', 'J2', 'J3'], actions: ['CA-1', 'CA-2', 'CA-3a', 'CA-3b'] },
+      validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active',
+    });
+  }
   store.setPrincipalSecret('P1', 'secret-P1');
   server = createFixtureServer(store);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -80,7 +87,7 @@ test('J2 end-to-end via tools: CA-2 executes under a scoped delegation WITHOUT c
   assert.equal(r.status, 201);
   const d = await r.json() as any;
   assert.match(d.consequentialAction.reference, /^SSPR-\d{8}$/);
-  assert.deepEqual(d.attribution, { agentOriginated: true, agentId: 'agent-alpha' });
+  assert.deepEqual(d.attribution, { agentOriginated: true, agentId: 'agent-alpha', delegationId: 'DLG-NARROW' });
 
   // One report per period: retry returns the original (3.4.1)
   const retry = await fetch(`${base}/api/journeys/J2/steps/declare`, {
@@ -319,4 +326,107 @@ test('1.1.2: the service description declares the resume period and endpoint (3.
   assert.equal(d.resumability.declaredPeriodHours, 24);
   assert.match(d.resumability.resume, /\/api\/journeys\/\{journeyId\}\/resume$/);
   assert.match(d.resumability.note, /keyed to the principal, not the session/);
+});
+
+// ---- Principle 5, performed rather than asserted ----
+
+async function principal(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${base}${path}`, { ...init, headers: { 'content-type': 'application/json', 'x-principal-secret': 'secret-P1', ...(init.headers ?? {}) } });
+}
+
+test('5.5.2: the principal is NOTIFIED of an agent-executed action, through their own channel', async () => {
+  const sid = 'sid-notify';
+  await fetch(`${base}/api/journeys/J3/steps/contact`, { method: 'POST', headers: headers(sid), body: JSON.stringify({ values: { email: 'notify@example.net' } }) });
+
+  const d = await (await principal('/api/notifications')).json() as any;
+  const n = d.notifications.find((x: any) => x.actionId === 'CA-3a');
+  assert.ok(n, 'a notification was delivered, not merely logged');
+  assert.equal(n.agentId, 'agent-alpha');
+  assert.match(n.message, /carried out "Update contact details" on your behalf/);
+  assert.match(n.message, /suspend or revoke the delegation at any time/);
+});
+
+test('5.4.1: the audit record is complete, plain-language and machine-readable, and names the agent', async () => {
+  const d = await (await principal('/api/audit')).json() as any;
+  assert.ok(d.entries.length > 0);
+  const e = d.entries.find((x: any) => x.actionId === 'CA-3a');
+  assert.equal(e.agent.id, 'agent-alpha');
+  assert.equal(e.agent.delegationId, 'DLG-T');
+  assert.match(e.plainLanguage, /your agent agent-alpha carried out/);
+  assert.match(d.contestability, /same channels, and on the same terms/); // 5.4.2
+});
+
+test('4.5.2 + 5.4.1: a hypothetical query is unattributed; CITING it at the moment of action is what puts it in the audit', async () => {
+  // The query itself carries no principal — that is 4.5.2, and it is why the
+  // rules endpoint needs no account.
+  const det = await (await fetch(`${base}/api/rules/ssp/determination`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ effectiveDate: '2026-07-09', circumstances: { ageYears: 20, residencyWeeks: 30, studyLoadEFT: 0.8, courseWeeks: 12, enrolmentStatus: 'offer', fortnightlyIncome: 1500 } }),
+  })).json() as any;
+  assert.match(det.determinationId, /^det_/);
+  assert.match(det.citeWhenActing, /attributes your reliance, not this query/);
+
+  // Before any citation, the principal's audit shows no determination for this.
+  const sid = 'sid-cite';
+  await fetch(`${base}/api/journeys/J3/steps/contact`, { method: 'POST', headers: headers(sid), body: JSON.stringify({ values: { email: 'cite-a@example.net' }, determinationId: det.determinationId }) });
+
+  const audit = await (await principal('/api/audit')).json() as any;
+  const cited = audit.entries.find((e: any) => e.determinationReliedUpon?.id === det.determinationId);
+  assert.ok(cited, 'the cited determination appears in the audit');
+  assert.equal(cited.determinationReliedUpon.eligible, false);
+  assert.deepEqual(cited.determinationReliedUpon.governingReason.sections, ['s11', 's9']);
+  assert.match(cited.plainLanguage, /relied on a determination that you were ineligible \(s11, s9\)/);
+});
+
+test('5.4.1: an agent cannot cite a determination the service never issued', async () => {
+  const r = await fetch(`${base}/api/journeys/J3/steps/contact`, {
+    method: 'POST', headers: headers('sid-forged'),
+    body: JSON.stringify({ values: { email: 'forged@example.net' }, determinationId: 'det_invented' }),
+  });
+  assert.equal(r.status, 400);
+  assert.equal(((await r.json()) as any).error.code, 'UNKNOWN_DETERMINATION');
+});
+
+test('5.5.1 / 5.1.2: the principal revokes, and the service gives effect BEFORE any further consequential action', async () => {
+  const sid = 'sid-revoke';
+  // Works while active.
+  const before = await fetch(`${base}/api/journeys/J3/steps/contact`, { method: 'POST', headers: headers(sid, 'DLG-REVOKE'), body: JSON.stringify({ values: { email: 'before@example.net' } }) });
+  assert.equal(before.status, 201);
+
+  const rev = await principal('/api/delegations/DLG-REVOKE/revoke', { method: 'POST' });
+  assert.equal(rev.status, 200);
+  assert.equal(((await rev.json()) as any).effectiveImmediately, true);
+
+  const after = await fetch(`${base}/api/journeys/J3/steps/contact`, { method: 'POST', headers: headers('sid-revoke-2', 'DLG-REVOKE'), body: JSON.stringify({ values: { email: 'after@example.net' } }) });
+  assert.equal(after.status, 403);
+  assert.equal(((await after.json()) as any).error.code, 'DELEGATION_REVOKED');
+});
+
+test('5.5.1: revocation is terminal — a revoked delegation cannot be reinstated', async () => {
+  const r = await principal('/api/delegations/DLG-REVOKE/reinstate', { method: 'POST' });
+  assert.equal(r.status, 409);
+  assert.equal(((await r.json()) as any).error.code, 'DELEGATION_REVOKED');
+});
+
+test('5.5.1: suspension is reversible', async () => {
+  await principal('/api/delegations/DLG-SUSPEND/suspend', { method: 'POST' });
+  const blocked = await fetch(`${base}/api/journeys/J3/steps/contact`, { method: 'POST', headers: headers('sid-susp', 'DLG-SUSPEND'), body: JSON.stringify({ values: { email: 's@example.net' } }) });
+  assert.equal(((await blocked.json()) as any).error.code, 'DELEGATION_SUSPENDED');
+
+  await principal('/api/delegations/DLG-SUSPEND/reinstate', { method: 'POST' });
+  const ok = await fetch(`${base}/api/journeys/J3/steps/contact`, { method: 'POST', headers: headers('sid-susp-2', 'DLG-SUSPEND'), body: JSON.stringify({ values: { email: 's2@example.net' } }) });
+  assert.equal(ok.status, 201);
+});
+
+test('the principal channel belongs to the principal: an agent cannot read the audit or alter delegations', async () => {
+  for (const p of ['/api/audit', '/api/notifications', '/api/delegations']) {
+    const asAgent = await fetch(`${base}${p}`, { headers: { 'x-principal-secret': 'secret-P1', 'x-agent-id': 'agent-alpha' } });
+    assert.equal(asAgent.status, 403, p);
+    assert.equal(((await asAgent.json()) as any).error.code, 'PRINCIPAL_CHANNEL');
+
+    const anon = await fetch(`${base}${p}`);
+    assert.equal(anon.status, 401, p);
+  }
+  const revoke = await fetch(`${base}/api/delegations/DLG-T/revoke`, { method: 'POST', headers: { 'x-agent-id': 'agent-alpha', 'x-principal-secret': 'secret-P1' } });
+  assert.equal(revoke.status, 403);
 });
