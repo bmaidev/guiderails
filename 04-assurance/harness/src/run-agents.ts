@@ -17,9 +17,9 @@
 /**
  * Exploratory real-agent runs. Usage:
  *
- *   npm run agents -- [--model claude-opus-4-8] [--build conformant|baseline|both] [--tasks T1a,T3,...]
+ *   npm run agents -- [--vendor anthropic|openai] [--model <id>] [--build conformant|baseline|both] [--tasks T1a,T3,...]
  *
- * Requires Anthropic API credentials in the environment. Results are
+ * Requires the chosen vendor's API credentials in the environment. Results are
  * written to runs/ (gitignored). D-008: these are EXPLORATORY runs —
  * not a benchmark round (no preregistration, no frozen briefs, n=1,
  * single vendor) — and must never be published or cited.
@@ -27,7 +27,7 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { runOne } from './runner.ts';
-import { llmAgent } from './llm-agent.ts';
+import { llmAgent, DEFAULT_MODELS, type Vendor } from './llm-agent.ts';
 import { TASKS } from './tasks.ts';
 import type { RunResult } from './metrics.ts';
 
@@ -42,9 +42,14 @@ function flag(name: string, fallback: string): string {
 const positionals = args.filter((a, i) => !a.startsWith('--') && args[i - 1]?.startsWith('--') !== true);
 const positionalBuild = positionals.find((a) => /^(conformant|baseline|both)$/.test(a));
 const positionalTasks = positionals.find((a) => /^T\d/.test(a));
-const positionalModel = positionals.find((a) => /^claude-/.test(a));
+const positionalModel = positionals.find((a) => /^(claude|gpt|o\d)/.test(a));
 
-const model = positionalModel ?? flag('model', 'claude-opus-4-8');
+const vendor = (flag('vendor', 'anthropic')) as Vendor;
+if (vendor !== 'anthropic' && vendor !== 'openai') {
+  console.error(`Unknown vendor "${vendor}". Use anthropic or openai.`);
+  process.exit(1);
+}
+const model = positionalModel ?? flag('model', DEFAULT_MODELS[vendor]);
 const buildArg = positionalBuild ?? flag('build', 'conformant');
 const taskIds = (positionalTasks ?? flag('tasks', 'T1a,T1b,T1c,T3,T4,T5,T6')).split(',');
 
@@ -57,9 +62,13 @@ if (tasks.length === 0) {
 
 console.log('EXPLORATORY REAL-AGENT RUN — not a benchmark round (D-008).');
 console.log('No preregistration, no frozen briefs, n=1, single vendor. Never publish or cite.\n');
-console.log(`model=${model} builds=${builds.join(',')} tasks=${tasks.map((t) => t.id).join(',')}\n`);
+console.log(`vendor=${vendor} model=${model} builds=${builds.join(',')} tasks=${tasks.map((t) => t.id).join(',')}`);
+if (vendor === 'openai') {
+  console.log('NOTE: the OpenAI driver has not yet completed a live smoke run. Record any wire-shape correction it needs.');
+}
+console.log('');
 
-const agent = llmAgent({ model });
+const agent = llmAgent({ vendor, model });
 const results: RunResult[] = [];
 
 for (const build of builds) {
@@ -74,7 +83,7 @@ for (const build of builds) {
 
 mkdirSync(new URL('../runs/', import.meta.url), { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const outPath = new URL(`../runs/exploratory-${model}-${stamp}.json`, import.meta.url);
-writeFileSync(outPath, JSON.stringify({ exploratory: true, model, date: stamp, results }, null, 1));
+const outPath = new URL(`../runs/exploratory-${vendor}-${model}-${stamp}.json`, import.meta.url);
+writeFileSync(outPath, JSON.stringify({ exploratory: true, vendor, model, date: stamp, results }, null, 1));
 console.log(`\nSaved (local only, gitignored): ${outPath.pathname}`);
 console.log('Reminder: exploratory — not publishable (D-008).');
