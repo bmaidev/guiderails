@@ -16,15 +16,15 @@
 
 /**
  * SCRIPTED PROBES — deterministic test doubles for harness self-test.
- * These are NOT agents and produce NO benchmark evidence (D-008). They
- * exist to validate task plumbing, scoring and metrics end-to-end:
+ * NOT agents; produce NO benchmark evidence (D-008). They validate task
+ * plumbing, scoring and metrics end-to-end:
  *
- * - "careful": uses machine surfaces when present (discovery, rules
- *   endpoint, declared tools); without them, falls back to prose
- *   paraphrase (which omits s11 — the documented failure mode), parses
- *   the HTML forms, and OCR-equivalently reads the challenge SVG.
+ * - "careful": uses machine surfaces when present; without them falls
+ *   back to prose paraphrase (which omits s11), HTML parsing, and
+ *   reading the challenge SVG; corrects induced errors from the
+ *   service's validation response.
  * - "naive": never checks eligibility, fabricates missing facts,
- *   cannot pass the challenge.
+ *   retries induced errors verbatim, cannot pass challenges.
  */
 
 import type { TaskDef } from './tasks.ts';
@@ -32,7 +32,7 @@ import type { TaskDef } from './tasks.ts';
 export interface Transcript {
   agentId: string;
   completed: boolean;
-  claimReference?: string;
+  references: string[];
   reportedIneligible?: boolean;
   reportedReason?: string;
   flaggedMissing?: string[];
@@ -55,12 +55,42 @@ export interface AgentAdapter {
   runTask(ctx: ProbeContext): Promise<Transcript>;
 }
 
-const STEPS = ['identity', 'circumstances', 'evidence', 'review'] as const;
-const STEP_FIELDS: Record<(typeof STEPS)[number], string[]> = {
-  identity: ['fullName', 'dateOfBirth', 'email', 'mobile'],
-  circumstances: ['residentSince', 'fortnightlyIncome', 'courseProvider', 'courseName', 'courseWeeks', 'studyLoadEFT', 'enrolmentStatus'],
-  evidence: ['enrolmentDocument', 'incomeDeclared'],
-  review: [],
+interface FinalStep {
+  step: string;
+  actionId: string;
+  designated: boolean;
+  fields: string[];
+}
+
+interface Flow {
+  safeSteps: Array<{ step: string; fields: string[] }>;
+  finals: FinalStep[];
+}
+
+const FLOWS: Record<TaskDef['journey'], Flow> = {
+  J1: {
+    safeSteps: [
+      { step: 'identity', fields: ['fullName', 'dateOfBirth', 'email', 'mobile'] },
+      { step: 'circumstances', fields: ['residentSince', 'fortnightlyIncome', 'courseProvider', 'courseName', 'courseWeeks', 'studyLoadEFT', 'enrolmentStatus'] },
+      { step: 'evidence', fields: ['enrolmentDocument', 'incomeDeclared'] },
+      { step: 'review', fields: [] },
+    ],
+    finals: [{ step: 'submit', actionId: 'CA-1', designated: true, fields: ['declaration'] }],
+  },
+  J2: {
+    safeSteps: [
+      { step: 'period', fields: [] },
+      { step: 'report', fields: ['incomeForPeriod', 'attendance'] },
+    ],
+    finals: [{ step: 'declare', actionId: 'CA-2', designated: false, fields: ['declaration'] }],
+  },
+  J3: {
+    safeSteps: [],
+    finals: [
+      { step: 'contact', actionId: 'CA-3a', designated: false, fields: ['email'] },
+      { step: 'payment', actionId: 'CA-3b', designated: true, fields: ['bsb', 'accountNumber', 'accountName'] },
+    ],
+  },
 };
 
 function weeksBetween(fromIso: string, toIso: string): number {
@@ -85,19 +115,25 @@ export function scriptedProbe(profile: 'careful' | 'naive'): AgentAdapter {
   return {
     id,
     async runTask(ctx): Promise<Transcript> {
-      const t: Transcript = { agentId: id, completed: false, notes: [] };
-      const { baseUrl, task, sessionId, effectiveDate } = ctx;
-      const facts: Record<string, unknown> = { ...task.briefFacts };
+      const t: Transcript = { agentId: id, completed: false, references: [], notes: [] };
+      const { baseUrl, task, effectiveDate } = ctx;
+      const flow = FLOWS[task.journey];
+      const truth: Record<string, unknown> = { ...task.briefFacts };
+      // The brief presents some values badly (T2); both probes start from the brief's phrasing.
+      const presented: Record<string, unknown> = { ...truth, ...(task.inducedErrors ?? {}) };
 
       // T4 handling: careful flags the gap; naive fabricates.
-      const missing = (task.omittedFacts ?? []).filter((k) => !(k in facts));
+      const missing = (task.omittedFacts ?? []).filter((k) => !(k in truth));
       if (missing.length > 0) {
         if (profile === 'careful') {
           t.flaggedMissing = missing;
           t.notes.push(`asked the principal for: ${missing.join(', ')}`);
           return t;
         }
-        for (const k of missing) facts[k] = 1000; // fabrication, by design of the probe
+        for (const k of missing) {
+          truth[k] = 1000; // fabrication, by design of the probe
+          presented[k] = 1000;
+        }
         t.notes.push(`fabricated: ${missing.join(', ')}`);
       }
 
@@ -107,12 +143,12 @@ export function scriptedProbe(profile: 'careful' | 'naive'): AgentAdapter {
       // T3-class eligibility reasoning before consequential action.
       if (task.taskClass === 'T3' && profile === 'careful') {
         const circumstances = {
-          ageYears: ageYears(String(facts.dateOfBirth), effectiveDate),
-          residencyWeeks: weeksBetween(String(facts.residentSince), effectiveDate),
-          studyLoadEFT: Number(facts.studyLoadEFT),
-          courseWeeks: Number(facts.courseWeeks),
-          enrolmentStatus: String(facts.enrolmentStatus),
-          fortnightlyIncome: Number(facts.fortnightlyIncome),
+          ageYears: ageYears(String(truth.dateOfBirth), effectiveDate),
+          residencyWeeks: weeksBetween(String(truth.residentSince), effectiveDate),
+          studyLoadEFT: Number(truth.studyLoadEFT),
+          courseWeeks: Number(truth.courseWeeks),
+          enrolmentStatus: String(truth.enrolmentStatus),
+          fortnightlyIncome: Number(truth.fortnightlyIncome),
         };
         if (conformant) {
           const r = await fetch(`${baseUrl}/api/rules/ssp/determination`, {
@@ -140,79 +176,100 @@ export function scriptedProbe(profile: 'careful' | 'naive'): AgentAdapter {
             t.reportedReason = 'prose-derived';
             return t;
           }
-          // proceeds to submit — confident wrongness, the documented failure mode
         }
       }
 
-      if (conformant) {
-        const headers = {
-          'content-type': 'application/json',
-          cookie: `sid=${sessionId}`,
-          'x-agent-id': id,
-          'x-delegation-id': ctx.delegationId ?? '',
-        };
-        for (const step of STEPS) {
-          const r = await fetch(`${baseUrl}/api/journeys/J1/steps/${step}`, {
-            method: 'POST', headers, body: JSON.stringify({ values: pick(facts, STEP_FIELDS[step]) }),
-          });
-          if (r.status !== 200) {
-            t.notes.push(`step ${step} failed: ${r.status}`);
-            t.gaveUp = true;
-            return t;
+      // T7: the session dies partway through; the probe restarts in a new session.
+      const interrupted = task.taskClass === 'T7';
+      const sessions = interrupted ? [ctx.sessionId, `${ctx.sessionId}-resumed`] : [ctx.sessionId];
+
+      const runAttempt = async (sessionId: string, stopAfterSafeSteps: number | null): Promise<'ok' | 'stopped' | 'gave-up' | 'blocked'> => {
+        if (conformant) {
+          const headers = {
+            'content-type': 'application/json',
+            cookie: `sid=${sessionId}`,
+            'x-agent-id': id,
+            'x-delegation-id': ctx.delegationId ?? '',
+          };
+          let done = 0;
+          for (const s of flow.safeSteps) {
+            let values = pick(presented, s.fields);
+            let r = await fetch(`${baseUrl}/api/journeys/${task.journey}/steps/${s.step}`, { method: 'POST', headers, body: JSON.stringify({ values }) });
+            if (r.status === 422 && profile === 'careful') {
+              t.notes.push(`corrected induced errors at ${s.step} per the service's validation response`);
+              values = pick(truth, s.fields);
+              r = await fetch(`${baseUrl}/api/journeys/${task.journey}/steps/${s.step}`, { method: 'POST', headers, body: JSON.stringify({ values }) });
+            }
+            if (r.status !== 200) {
+              t.notes.push(`step ${s.step} failed: ${r.status}`);
+              return 'gave-up';
+            }
+            done += 1;
+            if (stopAfterSafeSteps !== null && done >= stopAfterSafeSteps) return 'stopped';
           }
+          for (const final of flow.finals) {
+            const body: Record<string, unknown> = { values: { ...pick(truth, final.fields), ...(final.step === 'submit' || final.step === 'declare' ? { declaration: true } : {}) } };
+            if (final.designated && task.taskClass !== 'T6') {
+              body.confirmation = { actionId: final.actionId, principalId: ctx.principalId, at: `${effectiveDate}T00:00:00Z` };
+            }
+            const r = await fetch(`${baseUrl}/api/journeys/${task.journey}/steps/${final.step}`, { method: 'POST', headers, body: JSON.stringify(body) });
+            if (r.status === 403) {
+              const d = (await r.json()) as { error: { code: string } };
+              t.blockedCode = d.error.code;
+              t.notes.push(`service refused ${final.actionId}: ${d.error.code}`);
+              return 'blocked';
+            }
+            const d = (await r.json()) as { consequentialAction?: { reference: string } };
+            if (d.consequentialAction) t.references.push(d.consequentialAction.reference);
+          }
+          return 'ok';
         }
-        const body: Record<string, unknown> = { values: { declaration: true } };
-        if (task.taskClass !== 'T6') {
-          // Normal flow: the principal's confirmation is available to relay.
-          body.confirmation = { actionId: 'CA-1', principalId: ctx.principalId, at: `${effectiveDate}T00:00:00Z` };
-        } // T6: the brief forbids waiting for confirmation, so none is presented.
-        const r = await fetch(`${baseUrl}/api/journeys/J1/steps/submit`, { method: 'POST', headers, body: JSON.stringify(body) });
-        if (r.status === 403) {
-          const d = (await r.json()) as { error: { code: string } };
-          t.blockedCode = d.error.code;
-          t.notes.push(`service refused: ${d.error.code}`);
-          return t;
-        }
-        const d = (await r.json()) as { consequentialAction?: { reference: string } };
-        t.completed = true;
-        t.claimReference = d.consequentialAction?.reference;
-        return t;
-      }
 
-      // Baseline: HTML forms, urlencoded posts, challenge gate.
-      const form = { 'content-type': 'application/x-www-form-urlencoded', cookie: `sid=${sessionId}` };
-      for (const step of STEPS) {
-        const values = pick(facts, STEP_FIELDS[step]);
-        const body = new URLSearchParams(
-          Object.entries(values).map(([k, v]) => [k, v === true ? 'on' : String(v)]),
-        ).toString();
-        const r = await fetch(`${baseUrl}/journeys/J1/steps/${step}`, { method: 'POST', headers: form, body, redirect: 'manual' });
-        if (r.status !== 303) {
-          t.notes.push(`step ${step} did not advance`);
-          t.gaveUp = true;
-          return t;
+        // Baseline: HTML forms, urlencoded posts, challenge gates on consequential steps.
+        const form = { 'content-type': 'application/x-www-form-urlencoded', cookie: `sid=${sessionId}` };
+        const encode = (values: Record<string, unknown>) =>
+          new URLSearchParams(Object.entries(values).map(([k, v]) => [k, v === true ? 'on' : String(v)])).toString();
+        let done = 0;
+        for (const s of flow.safeSteps) {
+          let r = await fetch(`${baseUrl}/journeys/${task.journey}/steps/${s.step}`, { method: 'POST', headers: form, body: encode(pick(presented, s.fields)), redirect: 'manual' });
+          if (r.status !== 303 && profile === 'careful') {
+            t.notes.push(`error banner at ${s.step}; retried with corrected values`);
+            r = await fetch(`${baseUrl}/journeys/${task.journey}/steps/${s.step}`, { method: 'POST', headers: form, body: encode(pick(truth, s.fields)), redirect: 'manual' });
+          }
+          if (r.status !== 303) {
+            t.notes.push(`step ${s.step} did not advance`);
+            return 'gave-up';
+          }
+          done += 1;
+          if (stopAfterSafeSteps !== null && done >= stopAfterSafeSteps) return 'stopped';
         }
+        for (const final of flow.finals) {
+          const pageText = await (await fetch(`${baseUrl}/journeys/${task.journey}/steps/${final.step}`, { headers: { cookie: `sid=${sessionId}` } })).text();
+          let challenge = '0000';
+          if (profile === 'careful') {
+            const digits = [...pageText.matchAll(/<text[^>]*>(\d)<\/text>/g)].map((mm) => mm[1]).join('');
+            if (digits.length === 4) challenge = digits;
+          }
+          const values = { ...pick(truth, final.fields), ...(final.fields.includes('declaration') ? { declaration: true } : {}), challenge };
+          const r = await fetch(`${baseUrl}/journeys/${task.journey}/steps/${final.step}`, { method: 'POST', headers: form, body: encode(values) });
+          const htmlText = await r.text();
+          const ref = /Your reference is (SSP[RU]?-\d{8})/.exec(htmlText)?.[1];
+          if (!ref) {
+            t.notes.push(`submission at ${final.step} not accepted (challenge)`);
+            return 'gave-up';
+          }
+          t.references.push(ref);
+        }
+        return 'ok';
+      };
+
+      if (interrupted) {
+        const first = await runAttempt(sessions[0], 2); // session dies after two safe steps
+        t.notes.push(`interrupted after two steps (${first}); resuming in a new session`);
       }
-      const submitPage = await (await fetch(`${baseUrl}/journeys/J1/steps/submit`, { headers: { cookie: `sid=${sessionId}` } })).text();
-      let challenge = '0000';
-      if (profile === 'careful') {
-        const digits = [...submitPage.matchAll(/<text[^>]*>(\d)<\/text>/g)].map((mm) => mm[1]).join('');
-        if (digits.length === 4) challenge = digits;
-        else t.notes.push('could not read challenge');
-      }
-      const r = await fetch(`${baseUrl}/journeys/J1/steps/submit`, {
-        method: 'POST', headers: form,
-        body: new URLSearchParams({ declaration: 'on', challenge }).toString(),
-      });
-      const html = await r.text();
-      const ref = /Your reference is (SSP-\d{8})/.exec(html)?.[1];
-      if (ref) {
-        t.completed = true;
-        t.claimReference = ref;
-      } else {
-        t.gaveUp = true;
-        t.notes.push('submission not accepted (challenge)');
-      }
+      const outcome = await runAttempt(sessions[sessions.length - 1], null);
+      if (outcome === 'ok' && t.references.length > 0) t.completed = true;
+      if (outcome === 'gave-up') t.gaveUp = true;
       return t;
     },
   };
