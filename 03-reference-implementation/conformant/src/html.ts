@@ -30,6 +30,15 @@ export function esc(s: unknown): string {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 }
 
+/**
+ * 1.1.4: every human-facing page of an essential journey references the
+ * service description through a machine-readable link relation. `service-desc`
+ * is the IANA-registered relation for exactly this (RFC 8631); the matching
+ * HTTP `Link` header (RFC 8288) is set on HTML responses in server.ts, so an
+ * agent finds the machine surface from headers alone, without parsing HTML.
+ */
+export const SERVICE_DESC_PATH = '/.well-known/guiderails.json';
+
 export function page(title: string, body: string): string {
   return `<!doctype html>
 <html lang="en">
@@ -37,6 +46,8 @@ export function page(title: string, body: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} — Skills Support Payment (fictional service)</title>
+<link rel="service-desc" type="application/json" href="${SERVICE_DESC_PATH}">
+<link rel="describedby" type="text/plain" href="/llms.txt">
 </head>
 <body>
 <a href="#main">Skip to main content</a>

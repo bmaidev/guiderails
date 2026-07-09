@@ -41,7 +41,7 @@ import {
 } from '../../packages/rules-sspd-2026/src/determination.ts';
 import { JOURNEYS, CA_REGISTER, REFERENCE_PREFIX, duplicateKey, PERIOD_SURFACE, THIRD_PARTY_NOTICE, type JourneyDef } from './journeys.ts';
 import { Store } from './store.ts';
-import { page, form, esc } from './html.ts';
+import { page, form, esc, SERVICE_DESC_PATH } from './html.ts';
 
 export const SURFACE_VERSION = '0.2.0';
 export const SURFACE_LAST_MODIFIED = '2026-07-09';
@@ -53,8 +53,36 @@ function json(res: http.ServerResponse, status: number, body: unknown): void {
 }
 
 function html(res: http.ServerResponse, status: number, body: string, headers: Record<string, string> = {}): void {
-  res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', ...headers });
+  res.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    // 1.1.4: machine surface discoverable from headers alone (RFC 8288/8631)
+    link: `<${SERVICE_DESC_PATH}>; rel="service-desc"; type="application/json", </llms.txt>; rel="describedby"; type="text/plain"`,
+    ...headers,
+  });
   res.end(body);
+}
+
+/** 1.1.4: root-level agent-discovery file naming the machine surfaces. */
+function llmsTxt(origin: string): string {
+  return `# Commonwealth Skills Support Payment
+
+> FICTIONAL service published for standards testing (Guiderails fixture, DECISIONS.md D-009). Administering authority: Commonwealth Skills Support Agency. This service conforms to the Guiderails standard and exposes declared machine surfaces for agents acting on a person's behalf.
+
+Agents should use the declared surfaces below rather than driving the human interface. Consequential actions, and whether each requires the principal's confirmation, are listed in the consequential-actions register within the service description.
+
+## Service
+- [Service description](${origin}${SERVICE_DESC_PATH}): canonical machine-readable description — journeys, tools, consequential-actions register, rules endpoints.
+- [Essentiality test](${origin}/api/essentiality-test): how the operator classifies a journey as essential.
+
+## Rules (authoritative)
+- [Eligibility determination](${origin}/api/rules/ssp/determination): POST declared circumstances, receive a determination with its governing reason, legal provenance and binding/indicative status. Authoritative. Do not infer eligibility from prose guidance.
+- [Rules changelog](${origin}/api/rules/ssp/changelog): rule versions and effective dates.
+
+## Journeys
+- [J1 Apply](${origin}/api/journeys/J1/schema): declared tool schemas per step. State: ${origin}/api/journeys/J1/state
+- [J2 Fortnightly activity report](${origin}/api/journeys/J2/schema): declared tool schemas per step. Reporting period: ${origin}/api/journeys/J2/period
+- [J3 Update details](${origin}/api/journeys/J3/schema): declared tool schemas per step.
+`;
 }
 
 function journeyDescription(origin: string, id: string, j: JourneyDef): Record<string, unknown> {
@@ -83,6 +111,12 @@ function serviceDescription(origin: string): Record<string, unknown> {
       standardClaimed: { standard: 'Guiderails', version: '0.2' },
     },
     surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED }, // 1.3.1
+    // 1.1.4 / 1.1.3: the discovery surfaces, each naming this same description
+    discovery: {
+      agentDiscoveryFile: `${origin}/llms.txt`,
+      serviceDescription: `${origin}${SERVICE_DESC_PATH}`,
+      linkRelation: 'service-desc',
+    },
     sessionTimeLimit: { minutes: SESSION_TIME_LIMIT_MINUTES, dataLossOnExpiry: false, recovery: 'Drafts are resumable for the declared period (3.4.2).' }, // 2.6.1
     essentialityTest: { reference: `${origin}/api/essentiality-test`, summary: 'A journey is essential if it lodges, varies or reports on a claim for the payment.' },
     journeys: Object.entries(JOURNEYS).map(([id, j]) => journeyDescription(origin, id, j)), // 1.1.2
@@ -159,7 +193,16 @@ export function createFixtureServer(store: Store): http.Server {
 
     try {
       // ---- Discovery ----
-      if (req.method === 'GET' && path === '/.well-known/guiderails.json') {
+      if (req.method === 'GET' && path === '/llms.txt') {
+        // 1.1.4: root-level discovery file, reachable without prior knowledge
+        res.writeHead(200, {
+          'content-type': 'text/plain; charset=utf-8',
+          link: `<${SERVICE_DESC_PATH}>; rel="service-desc"; type="application/json"`,
+        });
+        res.end(llmsTxt(origin));
+        return;
+      }
+      if (req.method === 'GET' && path === SERVICE_DESC_PATH) {
         return json(res, 200, serviceDescription(origin));
       }
       if (req.method === 'GET' && path === '/api/essentiality-test') {

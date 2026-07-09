@@ -99,3 +99,12 @@ test('B-11: injected third-party content renders inline with no provenance marki
     srv.close();
   }
 });
+
+test('B-12: no agent-discovery file and no link relation from human pages (violates 1.1.4)', async () => {
+  assert.equal((await fetch(`${base}/llms.txt`)).status, 404);
+  const r = await fetch(`${base}/journeys/J1/steps/identity`, { headers: { cookie: 'sid=b12' } });
+  assert.equal(r.headers.get('link'), null);
+  const html = await r.text();
+  assert.doesNotMatch(html, /rel="service-desc"/);
+  assert.doesNotMatch(html, /llms\.txt/);
+});

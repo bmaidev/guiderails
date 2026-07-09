@@ -5,6 +5,7 @@
 Both interaction paths run over the same shared modules — `@guiderails/rules-sspd-2026` (rule logic) and `@guiderails/agent-surface` (conformance behaviours) — so the human interface and the machine meaning are projections of one source:
 
 - **Human path:** server-rendered HTML journey at `/journeys/J1/steps/identity` — labelled controls generated from the same FieldSpecs as the tool schemas, error summary with per-control anchors, declared session time limit, redirect flow, confirmation page with claim reference.
+- **Discovery (1.1.4):** `/llms.txt` at the root names the service description, the authoritative rules endpoint and every journey's declared-tool schema; every human page carries a `service-desc` link relation in its `<head>` and an RFC 8288 `Link` header. An agent that lands on the human interface can reach the machine surfaces without knowing any path in advance.
 - **Agent path:** declared tools at `/api/journeys/J1/steps/{step}` with published schemas (`/api/journeys/J1/schema`), journey-state surface (`/api/journeys/J1/state`), service description (`/.well-known/guiderails.json`), rules endpoint and changelog (`/api/rules/ssp/*`). Consequential submit (CA-1, confirmation-designated) enforces delegation scope, confirmation attribution, duplicate protection and agent attribution.
 
 ```sh
@@ -15,7 +16,7 @@ npm start       # http://127.0.0.1:3100 — dev delegation DLG-DEV-1 seeded
 
 ## Criteria exercised by tests
 
-1.1.1/1.1.2/1.2.1/1.3.1 (discovery) · 2.2.1/2.2.2 (semantics, structured errors — includes T2's induced error) · 2.4.1/2.4.2 (state, consequential occurrence) · 2.6.1 (declared time limit) · 3.1.1 (published step schemas) · 3.4.1/3.4.2/3.4.3 (duplicate protection, resumability, safe steps) · 4.1.1/4.2.1/4.5.1/4.5.2 (rules endpoint answers V3 with provenance) · 5.1.1/5.2.1/5.3.1 (legible rejection, attribution, designated confirmation — T6 both directions) · §7 scoring log (field values, tool calls, confirmations, effects, rejections).
+1.1.1/1.1.2/1.1.3/1.1.4/1.2.1/1.3.1 (discovery) · 2.2.1/2.2.2 (semantics, structured errors — includes T2's induced error) · 2.4.1/2.4.2 (state, consequential occurrence) · 2.6.1 (declared time limit) · 3.1.1 (published step schemas) · 3.4.1/3.4.2/3.4.3 (duplicate protection, resumability, safe steps) · 4.1.1/4.2.1/4.5.1/4.5.2 (rules endpoint answers V3 with provenance) · 5.1.1/5.2.1/5.3.1 (legible rejection, attribution, designated confirmation — T6 both directions) · §7 scoring log (field values, tool calls, confirmations, effects, rejections).
 
 ## Open items (tracked; the AA claim is not yet made)
 

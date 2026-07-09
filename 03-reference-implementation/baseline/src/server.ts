@@ -32,6 +32,8 @@
  *  B-07 no delegation, confirmation, attribution
  *  B-08 generic unassociated error banner
  *  B-09 no machine surfaces (no state, schema, discovery, period)
+ *  B-11 third-party content rendered inline, indistinguishable from the operator's
+ *  B-12 no agent-discovery file and no machine-readable link relation (1.1.4)
  */
 
 import http from 'node:http';
@@ -191,7 +193,8 @@ export function createBaselineServer(store: BaselineStore): http.Server {
       }
 
       // B-09: no state/schema/discovery/period surfaces. B-06: no rules. B-07: no delegation.
-      if (path.startsWith('/api/') || path === '/.well-known/guiderails.json') {
+      // B-12: no /llms.txt agent-discovery file (and pageHtml emits no link relation).
+      if (path.startsWith('/api/') || path === '/.well-known/guiderails.json' || path === '/llms.txt') {
         return html(404, pageHtml('Not found', '<p>Page not found.</p>'));
       }
 
