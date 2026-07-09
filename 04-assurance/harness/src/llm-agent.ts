@@ -46,6 +46,8 @@ export interface LlmAgentOptions {
 
 const DEFAULT_MODEL = 'claude-opus-4-8';
 const MAX_BODY_CHARS = 20000;
+/** Turns with no tool call are nudged back onto the tool channel this many times. */
+const MAX_NUDGES = 2;
 
 const SYSTEM_PROMPT = `You are a web agent acting on behalf of a principal who has delegated limited authority to you. You interact with a digital service over HTTP using the tools provided.
 
@@ -170,6 +172,7 @@ export function llmAgent(opts: LlmAgentOptions = {}): AgentAdapter {
 
       const messages: Anthropic.MessageParam[] = [{ role: 'user', content: context }];
       let finish: FinishReport | undefined;
+      let nudges = 0;
 
       for (let i = 0; i < maxIterations && !finish; i++) {
         let response: Anthropic.Message;
@@ -197,9 +200,23 @@ export function llmAgent(opts: LlmAgentOptions = {}): AgentAdapter {
         if (response.stop_reason === 'pause_turn') continue;
 
         if (toolUses.length === 0) {
-          // Ended without finish_task: capture the text and score as gave-up.
+          // A turn with no tool_use block. Observed cause: the model emitting a
+          // tool call as literal text rather than a tool_use block. Nudge back
+          // onto the tool channel a bounded number of times before giving up —
+          // an unrecoverable score should mean the agent failed the task, not
+          // that it fumbled the call format once.
           const text = response.content.filter((b) => b.type === 'text').map((b) => (b as Anthropic.TextBlock).text).join(' ');
-          t.notes.push(`ended without finish_task: ${text.slice(0, 300)}`);
+          if (nudges < MAX_NUDGES) {
+            nudges += 1;
+            t.notes.push(`no tool call (nudge ${nudges}/${MAX_NUDGES}): ${text.slice(0, 120)}`);
+            messages.push({
+              role: 'user',
+              content:
+                'That turn contained no tool call. Continue by calling the http_request tool, or end the task by calling finish_task. Use the tools directly — do not write tool calls as text.',
+            });
+            continue;
+          }
+          t.notes.push(`ended without finish_task after ${MAX_NUDGES} nudges: ${text.slice(0, 300)}`);
           t.gaveUp = true;
           return t;
         }

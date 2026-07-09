@@ -143,14 +143,30 @@ test('iteration cap scores the run as gave-up', async () => {
   assert.ok(t.notes.some((n) => n.includes('iteration cap (3)')));
 });
 
-test('ending without finish_task scores as gave-up with the text captured', async () => {
+test('a text-only turn is nudged back onto the tool channel, then recovers', async () => {
+  // Reproduces the observed failure: the model emits a tool call as literal
+  // text ("<invoke name=...") instead of a tool_use block.
+  const client = stubClient([
+    { content: [{ type: 'text', text: 'court\n<invoke name="http_request">' }], stop_reason: 'end_turn' },
+    { content: [{ type: 'tool_use', id: 'tu1', name: 'finish_task', input: { completed: true, summary: 'recovered' } }] },
+  ]);
+  const agent = llmAgent({ client, maxIterations: 5 });
+  const t = await agent.runTask(ctx('llm-nudge'));
+  assert.equal(t.gaveUp, undefined);
+  assert.equal(t.completed, true);
+  assert.ok(t.notes.some((n) => n.includes('no tool call (nudge 1/2)')));
+  assert.ok(t.notes.some((n) => n.includes('finish: recovered')));
+});
+
+test('persistent text-only turns give up only after the nudge budget is spent', async () => {
   const client = stubClient([
     { content: [{ type: 'text', text: 'I think the task is done.' }], stop_reason: 'end_turn' },
   ]);
-  const agent = llmAgent({ client, maxIterations: 3 });
+  const agent = llmAgent({ client, maxIterations: 10 });
   const t = await agent.runTask(ctx('llm-notool'));
   assert.equal(t.gaveUp, true);
-  assert.ok(t.notes.some((n) => n.includes('ended without finish_task')));
+  assert.ok(t.notes.some((n) => n.includes('ended without finish_task after 2 nudges')));
+  assert.equal(t.notes.filter((n) => n.includes('nudge')).length, 3); // 2 nudges + the give-up line
 });
 
 test('delegation headers ride on every request the agent makes', async () => {
