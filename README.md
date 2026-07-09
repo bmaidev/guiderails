@@ -47,6 +47,7 @@ Not by assertion — by measurement. The standard ships with a benchmark harness
 ```
 CLAUDE.md                        ← operating manual: how work happens here (authoritative)
 AGENTS.md                        ← pointer to CLAUDE.md (one source of truth)
+llms.txt                         ← agent-discovery file: this repo's own machine surface (1.1.4)
 README.md · DECISIONS.md · LICENSING.md
 00-thesis/THESIS.md              ← the argument: agents as assistive technology
 01-research/RESEARCH-DOSSIER.md  ← evidence base with verification status

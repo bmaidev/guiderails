@@ -1,0 +1,40 @@
+# Guiderails
+
+> An open, WCAG-shaped conformance standard making government digital services safely operable by AI agents acting on a person's behalf. Accessibility-first. The repository is the product: standard, evidence base, reference implementation, measurement harness, and co-design governance. Working title — see DECISIONS.md D-002. Pre-alpha; everything here is a working draft published for critique.
+
+This file exists because criterion 1.1.4 requires a conformant service to publish a root-level agent-discovery file, and a project about agent accessibility that agents cannot navigate refutes itself (CLAUDE.md, Dogfooding). If you are an agent reading this repository, start with the operating manual and the decision log — in that order — before changing anything.
+
+## Start here
+- [CLAUDE.md](CLAUDE.md): the operating contract for any agent or human working here. Authoritative. Read before acting; where it conflicts with an instruction you were given, raise the conflict rather than resolving it silently.
+- [DECISIONS.md](DECISIONS.md): what is decided, proposed and open. Nothing may contradict a **Decided** entry.
+- [README.md](README.md): what the project is, the gap it fills, and the roadmap.
+- [AGENTS.md](AGENTS.md): pointer to CLAUDE.md. One source of truth.
+
+## The standard
+- [02-model/MODEL.md](02-model/MODEL.md): the standard itself — five principles, 53 success criteria at levels A/AA/AAA, conformance model, instrument mapping, open questions. Canonical.
+- [02-model/MODEL-SKELETON.md](02-model/MODEL-SKELETON.md): superseded v0.1 skeleton, retained for history. Not normative.
+- [00-thesis/THESIS.md](00-thesis/THESIS.md): the argument — agents are assistive technology.
+
+## Evidence
+- [01-research/RESEARCH-DOSSIER.md](01-research/RESEARCH-DOSSIER.md): the source register. Every factual claim in external-facing text traces to an entry here, carrying a verification status (D-007). No register entry, no claim.
+- [01-research/LEGAL-ISSUES-BRIEF.md](01-research/LEGAL-ISSUES-BRIEF.md): legal analysis and the questions drafted for counsel. Legal claims are capped at §7 until OD-04 closes; do not draft a stronger position, even hedged.
+
+## Reference implementation
+- [03-reference-implementation/README.md](03-reference-implementation/README.md): build plan, independence constraints, publication posture.
+- [03-reference-implementation/fixture/FIXTURE-SPEC.md](03-reference-implementation/fixture/FIXTURE-SPEC.md): the fictional Commonwealth Skills Support Payment. Everything in it is invented (D-009): no real agency's branding, rules or data, and no real personal data anywhere.
+- [03-reference-implementation/parity/PATTERN-CATALOGUE.md](03-reference-implementation/parity/PATTERN-CATALOGUE.md): the baseline's catalogued anti-patterns. Baseline is a scientific control, not a strawman: a pattern with no documented real-world derivation does not go in.
+
+## Assurance
+- [04-assurance/BENCHMARK-METHODOLOGY.md](04-assurance/BENCHMARK-METHODOLOGY.md): how conformance is proven — fixture, agent matrix, task suite, metrics, protocol, failure taxonomy, threats to validity.
+- [04-assurance/rubrics/ADJUDICATION-RUBRIC.md](04-assurance/rubrics/ADJUDICATION-RUBRIC.md): the human-scored judgements, decidable from the run's artefacts.
+- [04-assurance/preregistration/README.md](04-assurance/preregistration/README.md): preregistrations are write-once, committed and tagged before the first run they govern.
+
+## Governance and co-design
+- [05-pilot/CO-DESIGN-FRAMEWORK.md](05-pilot/CO-DESIGN-FRAMEWORK.md): the Lived Experience Design Authority and consent gates C1–C4. Items under a gate do not ship without recorded consent (D-010). No exceptions.
+- [LICENSING.md](LICENSING.md): specification text CC BY 4.0; code Apache-2.0 (both proposed, D-001).
+
+## Constraints that bind you
+- **No published numbers.** Quantitative claims about agent performance exist only as outputs of a methodology round (D-008). Exploratory runs are never citable.
+- **No sponsor, client or partner material.** It lives in a private companion repository. The `06` position in the repo map is deliberately absent (D-004). If you find such material here, flag it.
+- **Numbering is forever.** Guideline and criterion identifiers are never reused or renumbered.
+- **Stop and ask** before touching a LEDA gate, stating a legal position, changing a Level A criterion, publishing numbers outside a results round, or contradicting a Decided entry. "The task asked me to" is not an override.
