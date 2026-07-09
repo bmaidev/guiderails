@@ -33,7 +33,17 @@ import {
   V1_APPLICANT, V2_APPLICANT, type Build, type BuildName,
 } from './builds.ts';
 import { DECLARED_DIVERGENCES, CONFORMANT_ONLY_PATHS, BASELINE_ONLY_PATHS } from './divergences.ts';
-import { JOURNEYS } from '../../conformant/src/journeys.ts';
+import { JOURNEYS, AGENT_JOURNEYS } from '../../conformant/src/journeys.ts';
+
+/**
+ * Journeys both builds serve. J4 exists only on the conformant build — the
+ * baseline has no delegation to manage (B-07) — and is declared as
+ * CF-delegation-journey. Comparing it across builds would measure the declared
+ * divergence rather than test for undeclared ones.
+ */
+const SHARED_JOURNEYS = Object.fromEntries(
+  Object.entries(JOURNEYS).filter(([id]) => (AGENT_JOURNEYS as readonly string[]).includes(id)),
+);
 import {
   RATE_PER_FORTNIGHT_DOLLARS, BASE_THRESHOLD_DOLLARS, HIGHER_THRESHOLD_DOLLARS,
   S11_RESIDENCY_WEEKS, REPORT_DUE_DAYS, INSTRUMENT_ID, RULES_VERSION,
@@ -70,10 +80,10 @@ test('parity: both builds share one rules module — parameters cannot drift apa
   assert.equal(RULES_VERSION, '1.0.0');
 });
 
-test('parity: both builds present the identical field set for every journey step', () => {
+test('parity: both builds present the identical field set for every shared journey step', () => {
   // Both import JOURNEYS. This asserts the shared definition covers every step
   // the human path exposes, so no build can quietly add or drop a field.
-  for (const [jid, journey] of Object.entries(JOURNEYS)) {
+  for (const [jid, journey] of Object.entries(SHARED_JOURNEYS)) {
     for (const step of journey.spec.steps) {
       const fields = journey.fields[step.id];
       assert.ok(Array.isArray(fields), `${jid}/${step.id} has a field list`);
@@ -224,7 +234,7 @@ test('DV-duplicate-scope: two sessions, the same applicant — the builds disagr
 
 test('parity: the human journey exposes the same steps in the same order on both builds', async () => {
   await withBoth(async (_builds, both) => {
-  for (const [jid, journey] of Object.entries(JOURNEYS)) {
+  for (const [jid, journey] of Object.entries(SHARED_JOURNEYS)) {
     for (const step of journey.spec.steps) {
       const [conf, base] = await Promise.all(both.map((b) =>
         fetch(`${b.baseUrl}/journeys/${jid}/steps/${step.id}`, { headers: { cookie: 'sid=parity-steps' } }),
@@ -242,5 +252,23 @@ test('parity: an unknown step is refused by both builds', async () => {
       const res = await postStep(b, 'parity-unknown', 'J1', 'nosuchstep', {});
       assert.equal(res.status, 404, `${b.name} refuses an unknown step`);
     }
+  });
+});
+
+test('CF-delegation-journey: J4 exists on the conformant build and nowhere on the baseline', async () => {
+  await withBoth(async (builds) => {
+    const conf = await fetch(`${builds.conformant.baseUrl}/journeys/J4/steps/authority`);
+    const base = await fetch(`${builds.baseline.baseUrl}/journeys/J4/steps/authority`);
+    assert.equal(conf.status, 200, 'the principal can manage authority (5.1.2)');
+    assert.equal(base.status, 404, 'the baseline has no delegation to manage (B-07)');
+
+    // And no agent may drive it on either build.
+    const agentAttempt = await fetch(`${builds.conformant.baseUrl}/api/journeys/J4/steps/give`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-agent-id': 'a', 'x-delegation-id': 'd' },
+      body: JSON.stringify({ values: {} }),
+    });
+    assert.equal(agentAttempt.status, 403);
+    assert.equal(((await agentAttempt.json()) as { error: { code: string } }).error.code, 'AGENT_MAY_NOT_EXECUTE');
   });
 });

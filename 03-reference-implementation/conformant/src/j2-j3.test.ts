@@ -135,9 +135,15 @@ test('5.1.2: a delegation scoped to J2 only cannot execute J3 actions', async ()
   assert.equal(((await r.json()) as any).error.code, 'SCOPE_JOURNEY');
 });
 
-test('1.1.2: service description now enumerates all three journeys with tools, state and period surfaces', async () => {
+test('1.1.2: service description enumerates every journey, and marks the one no agent may drive', async () => {
   const d = await (await fetch(`${base}/.well-known/guiderails.json`)).json() as any;
-  assert.deepEqual(d.journeys.map((j: any) => j.id), ['J1', 'J2', 'J3']);
+  assert.deepEqual(d.journeys.map((j: any) => j.id), ['J1', 'J2', 'J3', 'J4']);
+
+  const j4 = d.journeys.find((j: any) => j.id === 'J4');
+  assert.equal(j4.agentExecutable, false);
+  assert.equal(j4.state, undefined, 'a journey no agent drives advertises no agent state surface');
+  assert.ok(j4.tools, 'but its schema stays discoverable, so an agent learns why it must not act');
+  assert.match(j4.principalOnly, /No delegation conveys it/);
   const j2 = d.journeys.find((j: any) => j.id === 'J2');
   assert.ok(j2.reportingPeriod.endsWith('/api/journeys/J2/period'));
   assert.deepEqual(j2.safeSteps, ['period', 'report']);
@@ -429,4 +435,128 @@ test('the principal channel belongs to the principal: an agent cannot read the a
   }
   const revoke = await fetch(`${base}/api/delegations/DLG-T/revoke`, { method: 'POST', headers: { 'x-agent-id': 'agent-alpha', 'x-principal-secret': 'secret-P1' } });
   assert.equal(revoke.status, 403);
+});
+
+// ---- J4: the delegation journey (5.1.2), and the power that cannot be delegated ----
+
+const j4 = (path: string, init: RequestInit = {}) =>
+  fetch(`${base}${path}`, { ...init, headers: { cookie: 'principal=P1', ...(init.headers ?? {}) } });
+
+const formPost = (path: string, values: Record<string, string>, cookie = 'principal=P1') =>
+  fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', cookie }, body: new URLSearchParams(values).toString(), redirect: 'manual' });
+
+test('5.1.2: no agent surface exists for J4 — the register says so, and the endpoint proves it', async () => {
+  const schema = await (await fetch(`${base}/api/journeys/J4/schema`)).json() as any;
+  const give = schema.steps.find((s: any) => s.id === 'give');
+  assert.equal(give.agentExecutable, false, 'the register tells an agent not to try');
+
+  const attempt = await fetch(`${base}/api/journeys/J4/steps/give`, {
+    method: 'POST', headers: headers('sid-j4'), body: JSON.stringify({ values: { agentId: 'agent-alpha' } }),
+  });
+  assert.equal(attempt.status, 403);
+  const d = await attempt.json() as any;
+  assert.equal(d.error.code, 'AGENT_MAY_NOT_EXECUTE');
+  assert.match(d.error.message, /principal's act alone/);
+  assert.match(d.error.principalJourney, /\/journeys\/J4\/steps\/authority$/);
+});
+
+test('the consequential-actions register marks the principal-only actions', async () => {
+  const d = await (await fetch(`${base}/.well-known/guiderails.json`)).json() as any;
+  const reg = Object.fromEntries(d.consequentialActionsRegister.map((a: any) => [a.id, a.agentExecutable]));
+  assert.equal(reg['CA-1'], true);
+  assert.equal(reg['CA-4a'], false);
+  assert.equal(reg['CA-4b'], false);
+});
+
+test('5.1.2: J4 requires the principal to sign in, and the credential is never given to an agent', async () => {
+  const anon = await fetch(`${base}/journeys/J4/steps/authority`);
+  const html = await anon.text();
+  assert.match(html, /Sign in to manage your agents/);
+  assert.match(html, /<label for="principalSecret">/); // 2.2.1
+  assert.match(html, /Never give it to an agent/);
+
+  const bad = await formPost('/journeys/J4/authenticate', { principalSecret: 'wrong' }, '');
+  assert.equal(bad.status, 422);
+  assert.match(await bad.text(), /role="alert"/); // 2.2.2
+
+  const good = await formPost('/journeys/J4/authenticate', { principalSecret: 'secret-P1' }, '');
+  assert.equal(good.status, 303);
+  assert.match(good.headers.get('set-cookie') ?? '', /^principal=P1/);
+});
+
+test('5.1.2: the principal gives scoped, time-bounded authority, and is notified', async () => {
+  const r = await formPost('/journeys/J4/steps/give', {
+    agentId: 'agent-new', journeys: 'J1,J2,J3', actions: 'CA-1,CA-2,CA-3a,CA-3b', validTo: '2026-12-31',
+  });
+  assert.equal(r.status, 201);
+  const body = await r.text();
+  const delegationId = /authority is <strong>(DLG-\d{8})<\/strong>/.exec(body)?.[1];
+  assert.ok(delegationId, 'a delegation was issued');
+
+  const inbox = await (await fetch(`${base}/api/notifications`, { headers: { 'x-principal-secret': 'secret-P1' } })).json() as any;
+  const n = inbox.notifications.find((x: any) => x.actionId === 'CA-4a');
+  assert.match(n.message, /You gave agent-new authority to act for you until 2026-12-31/);
+
+  // The new delegation is real, scoped and time-bounded.
+  const list = await (await fetch(`${base}/api/delegations`, { headers: { 'x-principal-secret': 'secret-P1' } })).json() as any;
+  const issued = list.delegations.find((d: any) => d.id === delegationId);
+  assert.equal(issued.agentId, 'agent-new');
+  assert.deepEqual(issued.scope.actions, ['CA-1', 'CA-2', 'CA-3a', 'CA-3b']);
+  assert.equal(issued.validTo, '2026-12-31T23:59:59Z');
+});
+
+test('the power to delegate is not delegable — even the principal cannot confer it', async () => {
+  const r = await formPost('/journeys/J4/steps/give', {
+    agentId: 'agent-greedy', journeys: 'J1', actions: 'CA-4a', validTo: '2026-12-31',
+  });
+  // The field's enum refuses it first, with an accessible error naming what is
+  // allowed (2.2.2). The ACTION_NOT_DELEGABLE guard behind it is defence in
+  // depth for a client that is not this form, and is unreachable from here.
+  assert.equal(r.status, 422);
+  const body = await r.text();
+  assert.match(body, /role="alert"/);
+  assert.match(body, /Provide one of: CA-1, CA-2, CA-3a, CA-3b/);
+  assert.doesNotMatch(body, /CA-4a<\/option>/, 'the option is not offered');
+});
+
+test('5.1.2: the journey validates like any Level A form — missing end date is caught and associated', async () => {
+  const r = await formPost('/journeys/J4/steps/give', { agentId: 'a', journeys: 'J1', actions: 'CA-1' });
+  assert.equal(r.status, 422);
+  const body = await r.text();
+  assert.match(body, /role="alert"/);
+  assert.match(body, /href="#validTo"/);   // anchored to the control (2.2.2)
+  assert.match(body, /aria-invalid="true"/);
+});
+
+test('5.1.2 / 5.5.1: the principal revokes through the journey, and it bites immediately', async () => {
+  const give = await formPost('/journeys/J4/steps/give', { agentId: 'agent-doomed', journeys: 'J3', actions: 'CA-3a', validTo: '2026-12-31' });
+  const delegationId = /authority is <strong>(DLG-\d{8})<\/strong>/.exec(await give.text())?.[1]!;
+
+  const before = await fetch(`${base}/api/journeys/J3/steps/contact`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: 'sid=j4-rev', 'x-agent-id': 'agent-doomed', 'x-delegation-id': delegationId },
+    body: JSON.stringify({ values: { email: 'ok@example.net' } }),
+  });
+  assert.equal(before.status, 201);
+
+  const revoke = await formPost('/journeys/J4/steps/control', { delegationId, change: 'revoke' });
+  assert.equal(revoke.status, 200);
+  assert.match(await revoke.text(), /now <strong>revoked<\/strong>/);
+
+  const after = await fetch(`${base}/api/journeys/J3/steps/contact`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: 'sid=j4-rev2', 'x-agent-id': 'agent-doomed', 'x-delegation-id': delegationId },
+    body: JSON.stringify({ values: { email: 'nope@example.net' } }),
+  });
+  assert.equal(after.status, 403);
+  assert.equal(((await after.json()) as any).error.code, 'DELEGATION_REVOKED');
+});
+
+test('5.5.1: revocation through the journey is terminal', async () => {
+  const give = await formPost('/journeys/J4/steps/give', { agentId: 'agent-term', journeys: 'J3', actions: 'CA-3a', validTo: '2026-12-31' });
+  const delegationId = /authority is <strong>(DLG-\d{8})<\/strong>/.exec(await give.text())?.[1]!;
+  await formPost('/journeys/J4/steps/control', { delegationId, change: 'revoke' });
+  const r = await formPost('/journeys/J4/steps/control', { delegationId, change: 'reinstate' });
+  assert.equal(r.status, 409);
+  assert.match(await r.text(), /Revoking is permanent/);
 });
