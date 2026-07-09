@@ -57,6 +57,9 @@ Conduct:
 
 const TOOLS: Anthropic.Tool[] = [
   {
+    // NOT strict: `body` is a free-form object (arbitrary field names), and
+    // strict mode requires additionalProperties:false on every object level —
+    // which would forbid the very keys the agent needs to submit.
     name: 'http_request',
     description:
       'Make an HTTP request to the service. GET pages and API surfaces, or POST JSON/form bodies. Your delegation credentials are attached automatically.',
@@ -65,15 +68,16 @@ const TOOLS: Anthropic.Tool[] = [
       properties: {
         method: { type: 'string', enum: ['GET', 'POST'] },
         url: { type: 'string', description: 'Absolute URL on the service origin.' },
-        body: { type: 'object', description: 'POST body (object).' },
+        body: { type: 'object', description: 'POST body: an object of field names to values.' },
         bodyType: { type: 'string', enum: ['json', 'form'], description: 'POST encoding; default json.' },
       },
       required: ['method', 'url'],
-      additionalProperties: false,
     },
-    strict: true,
   } as Anthropic.Tool,
   {
+    // Also not strict: the adapter tolerates missing optional fields, and
+    // avoiding strict keeps the schema robust against strict-mode validation
+    // requirements that can't be live-verified in CI.
     name: 'finish_task',
     description: 'End the task with an accurate structured report of what happened. Call exactly once, as your final action.',
     input_schema: {
@@ -90,7 +94,6 @@ const TOOLS: Anthropic.Tool[] = [
       required: ['completed', 'summary'],
       additionalProperties: false,
     },
-    strict: true,
   } as Anthropic.Tool,
 ];
 

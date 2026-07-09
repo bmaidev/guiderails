@@ -37,9 +37,16 @@ function flag(name: string, fallback: string): string {
   return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
 }
 
-const model = flag('model', 'claude-opus-4-8');
-const buildArg = flag('build', 'conformant');
-const taskIds = flag('tasks', 'T1a,T1b,T1c,T3,T4,T5,T6').split(',');
+// npm swallows --flags unless the user remembers `npm run agents -- --build ...`.
+// Accept bare positional forms too: a build name, a task list, a model ID.
+const positionals = args.filter((a, i) => !a.startsWith('--') && args[i - 1]?.startsWith('--') !== true);
+const positionalBuild = positionals.find((a) => /^(conformant|baseline|both)$/.test(a));
+const positionalTasks = positionals.find((a) => /^T\d/.test(a));
+const positionalModel = positionals.find((a) => /^claude-/.test(a));
+
+const model = positionalModel ?? flag('model', 'claude-opus-4-8');
+const buildArg = positionalBuild ?? flag('build', 'conformant');
+const taskIds = (positionalTasks ?? flag('tasks', 'T1a,T1b,T1c,T3,T4,T5,T6')).split(',');
 
 const builds = buildArg === 'both' ? (['conformant', 'baseline'] as const) : ([buildArg] as ('conformant' | 'baseline')[]);
 const tasks = TASKS.filter((t) => taskIds.includes(t.id));
