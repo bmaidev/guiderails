@@ -36,11 +36,11 @@ Guiderails is the missing third leg: the **service-side** standard for **citizen
 
 Principles 4 and 5 are what make this a *government* standard. Nothing in the commercial agentic-web ecosystem provides them.
 
-See [02-model/MODEL-SKELETON.md](02-model/MODEL-SKELETON.md) for the full architecture: principles → guidelines → testable success criteria → conformance levels (A / AA / AAA) → techniques.
+See [02-model/MODEL.md](02-model/MODEL.md) for the standard in full: principles → guidelines → testable success criteria → conformance levels (A / AA / AAA) → techniques.
 
 ## How conformance is proven
 
-Not by assertion — by measurement. The standard ships with a benchmark harness: the same service journey is built in baseline and conformant versions, a matrix of frontier browser agents runs a defined task suite against both, and we publish task success rate, unrecoverable error rate, fabricated-input rate, wrong-outcome rate, steps and tokens. Assurance methodology lives in the model skeleton and will graduate to its own workstream.
+Not by assertion — by measurement. The standard ships with a benchmark harness: the same service journey is built in baseline and conformant versions, a matrix of frontier browser agents runs a defined task suite against both, and we publish task success rate, unrecoverable error rate, fabricated-input rate, wrong-outcome rate, steps and tokens. Assurance methodology is defined in [04-assurance/BENCHMARK-METHODOLOGY.md](04-assurance/BENCHMARK-METHODOLOGY.md).
 
 ## Repository map
 
