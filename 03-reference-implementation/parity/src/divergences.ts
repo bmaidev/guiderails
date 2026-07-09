@@ -71,6 +71,7 @@ export const DECLARED_DIVERGENCES: Divergence[] = [
   { id: 'CF-period', kind: 'conformance', description: 'J2 reporting-period surface with explicit timezone semantics (2.6.2).' },
   { id: 'CF-audit', kind: 'conformance', description: 'Principal-channel audit record of agent actions, plain-language and machine-readable, with the determinations relied upon and a contestability statement (5.4.1, 5.4.2).' },
   { id: 'CF-notifications', kind: 'conformance', description: 'Notification of each agent-executed consequential action, delivered to the principal\'s channel (5.5.2).' },
+  { id: 'CF-delegation-journey', kind: 'conformance', description: 'J4, the principal\'s journey for giving, suspending, revoking and reinstating an agent\'s authority — conforming at Level A itself, as 5.1.2 requires. The baseline has no delegation at all (B-07), so no such journey exists there. Its consequential actions are marked agentExecutable:false: no agent may drive it, and no delegation conveys the power to delegate.' },
   { id: 'CF-delegation-lifecycle', kind: 'conformance', description: 'The principal suspends, revokes or reinstates a delegation through an always-available channel; revocation is terminal and takes effect before any further consequential action (5.1.2, 5.5.1).' },
   { id: 'CF-resume', kind: 'conformance', description: 'Resume of an interrupted journey: work is checkpointed against the principal, not the session, and adopted by a new session under the same delegation for a declared period (3.4.2). The baseline discards the journey (B-10).' },
 

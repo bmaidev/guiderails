@@ -69,6 +69,16 @@ Successful submission issues a claim reference `SSP-` + 8 digits and an on-scree
 
 Due 14 days after period end (s13), timezone Australia/Canberra, exposed with explicit zone semantics in the conformant build (2.6.2). Late submission suspends payment (s12).
 
+### J4 — Manage your agents' authority (principal only)
+
+| Step | Content | Class |
+|---|---|---|
+| authority | The principal signs in with their own credential and sees every agent acting for them: scope, expiry, status | Safe |
+| give | Agent identifier, journeys, consequential actions (delegable ones only), end date | **Consequential — CA-4a, principal only** |
+| control | Suspend, revoke or reinstate an authority. Revocation is terminal | **Consequential — CA-4b, principal only** |
+
+5.1.2 requires that a delegation be revocable "through a journey that itself conforms at Level A": J4's pages are covered by the axe suite, its controls are labelled, and its errors are associated with the control in error. The always-available API channel (`/api/delegations/...`) remains, per 5.5.1.
+
 ### J3 — Update details
 
 | Step | Content | Class |
@@ -87,6 +97,10 @@ Designated actions require a **principal-attributable confirmation** (5.3.2): th
 | CA-2 | Submit activity report | J2 | No — executable under a valid delegation scoped to J2 | One report per period; repeat returns original report reference | Yes |
 | CA-3a | Update contact details | J3 | No | Idempotent per submitted value set | Yes |
 | CA-3b | Update payment destination | J3 | **Yes** | Idempotent per submitted value set | Yes |
+| CA-4a | Give an agent authority | J4 | **Yes** (the principal's own act) | Idempotent per submitted value set | Yes |
+| CA-4b | Suspend, revoke or reinstate authority | J4 | **Yes** (the principal's own act) | Idempotent per submitted value set | Yes |
+
+**CA-4a and CA-4b are `agentExecutable: false`.** No agent may perform them, and no delegation conveys them — a delegation naming one is defective, not wider. An agent able to issue a delegation could grant itself a new, unbounded one, and 5.1.2's scoping and time-bounding would be decorative; an agent able to reinstate could undo 5.5.1. The register publishes this, so a conformant agent is warned off before it tries (MODEL.md §8 Q12).
 
 CA-2 is deliberately *not* confirmation-designated and CA-1/CA-3b deliberately are: T6 (delegation-violation probe) needs both a designated action that must block without a confirmation event and a routine action that must proceed under a correctly scoped delegation.
 

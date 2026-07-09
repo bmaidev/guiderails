@@ -29,6 +29,18 @@ export interface ConsequentialActionSpec {
   title: string;
   /** 5.3.1: whether principal confirmation is designated for this action. */
   confirmationDesignated: boolean;
+  /**
+   * Whether any agent may execute this action at all. Defaults to true.
+   *
+   * The register as 5.3.1 describes it knows two kinds of action: agent-executable
+   * with confirmation, and agent-executable without. Some actions are neither.
+   * Issuing, widening or reinstating a delegation is the clearest case: an agent
+   * permitted to do it can grant itself a new, unbounded delegation, and 5.1.2's
+   * scoping and time-bounding become decorative. Such actions belong to the
+   * principal alone, and no delegation — however carefully scoped — can convey
+   * them. See MODEL.md §8 Q12.
+   */
+  agentExecutable?: boolean;
 }
 
 export type DelegationStatus = 'active' | 'suspended' | 'revoked';
@@ -71,6 +83,8 @@ export type RejectionCode =
   | 'SCOPE_JOURNEY'
   | 'SCOPE_ACTION'
   | 'AGENT_MISMATCH'
+  /** The action is the principal's alone; no delegation can convey it. */
+  | 'AGENT_MAY_NOT_EXECUTE'
   | 'CONFIRMATION_REQUIRED'
   | 'CONFIRMATION_PRINCIPAL_MISMATCH'
   | 'CONFIRMATION_ACTION_MISMATCH'
@@ -114,6 +128,16 @@ function reject(code: RejectionCode, message: string): AuthorisationResult {
 
 export function authoriseConsequentialAction(req: AuthorisationRequest): AuthorisationResult {
   const { action, delegation, confirmation, at, agentId, redeemConfirmation } = req;
+
+  // Checked before anything else, and independently of the delegation presented.
+  // A delegation that names this action is not a wider grant — it is a defective
+  // one, and honouring it would let an agent authorise itself.
+  if (action.agentExecutable === false) {
+    return reject(
+      'AGENT_MAY_NOT_EXECUTE',
+      `Action "${action.id}" can be performed only by the principal. No delegation conveys it, and one that names it does not widen what an agent may do.`,
+    );
+  }
 
   if (!delegation) {
     return reject(

@@ -332,3 +332,53 @@ test('integration: designated submit requires confirmation, then duplicates retu
   assert.equal(state.consequentialActionOccurred, true);
   assert.equal(state.consequentialEvents[0].reference, 'SSP-00000042');
 });
+
+// ---- Principal-only actions: no delegation conveys them ----
+
+const CA_ISSUE: ConsequentialActionSpec = {
+  id: 'CA-4a', journeyId: 'J4', title: 'Issue a delegation',
+  confirmationDesignated: true, agentExecutable: false,
+};
+
+test('a principal-only action is refused even to an agent holding a delegation that names it', () => {
+  const tokens = new ConfirmationTokenStore();
+  const issued = tokens.issue('P1', 'CA-4a', NOW);
+
+  // The most favourable case the attacker could construct: a valid, active,
+  // in-scope delegation naming the action, and a genuine principal-issued
+  // confirmation token. It still fails, because the grant itself is defective.
+  const overreaching: Delegation = {
+    ...DELEGATION,
+    scope: { journeys: ['J1', 'J2', 'J3', 'J4'], actions: ['CA-1', 'CA-4a'] },
+  };
+  const r = authoriseConsequentialAction({
+    action: CA_ISSUE, agentId: 'agent-alpha', delegation: overreaching, at: NOW,
+    confirmation: { actionId: 'CA-4a', principalId: 'P1', at: NOW, token: issued.token, channel: 'principal-channel' },
+    redeemConfirmation: (q) => tokens.redeem(q),
+  });
+  assert.equal(r.authorised, false);
+  if (!r.authorised) {
+    assert.equal(r.reason.code, 'AGENT_MAY_NOT_EXECUTE');
+    assert.match(r.reason.message, /No delegation conveys it/);
+  }
+});
+
+test('the refusal precedes the delegation checks: no delegation at all yields the same answer', () => {
+  const r = authoriseConsequentialAction({ action: CA_ISSUE, agentId: 'agent-alpha', at: NOW });
+  assert.equal(r.authorised, false);
+  // Not DELEGATION_MISSING: the agent's problem is not that it lacks authority,
+  // but that this authority is not delegable.
+  if (!r.authorised) assert.equal(r.reason.code, 'AGENT_MAY_NOT_EXECUTE');
+});
+
+test('actions default to agent-executable, so the register need only name the exceptions', () => {
+  assert.equal(CA1.agentExecutable, undefined);
+  const tokens = new ConfirmationTokenStore();
+  const issued = tokens.issue('P1', 'CA-1', NOW);
+  const r = authoriseConsequentialAction({
+    action: CA1, agentId: 'agent-alpha', delegation: DELEGATION, at: NOW,
+    confirmation: { actionId: 'CA-1', principalId: 'P1', at: NOW, token: issued.token, channel: 'principal-channel' },
+    redeemConfirmation: (q) => tokens.redeem(q),
+  });
+  assert.equal(r.authorised, true);
+});

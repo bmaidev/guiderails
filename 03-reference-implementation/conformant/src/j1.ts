@@ -38,6 +38,10 @@ export const CA_REGISTER: ConsequentialActionSpec[] = [
   { id: 'CA-2', journeyId: 'J2', title: 'Submit activity report', confirmationDesignated: false },
   { id: 'CA-3a', journeyId: 'J3', title: 'Update contact details', confirmationDesignated: false },
   { id: 'CA-3b', journeyId: 'J3', title: 'Update payment destination', confirmationDesignated: true },
+  // Principal-only. An agent that could issue a delegation could grant itself a
+  // new, unbounded one, and 5.1.2's scoping and time-bounding would be decorative.
+  { id: 'CA-4a', journeyId: 'J4', title: 'Give an agent authority', confirmationDesignated: true, agentExecutable: false },
+  { id: 'CA-4b', journeyId: 'J4', title: 'Suspend, revoke or reinstate an agent\'s authority', confirmationDesignated: true, agentExecutable: false },
 ];
 
 export const J1_FIELDS: Record<string, FieldSpec[]> = {

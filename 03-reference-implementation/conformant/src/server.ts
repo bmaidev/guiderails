@@ -40,7 +40,7 @@ import {
   RULES_VERSION,
   INSTRUMENT_COMMENCEMENT,
 } from '../../packages/rules-sspd-2026/src/determination.ts';
-import { JOURNEYS, CA_REGISTER, REFERENCE_PREFIX, duplicateKey, PERIOD_SURFACE, THIRD_PARTY_NOTICE, type JourneyDef } from './journeys.ts';
+import { JOURNEYS, CA_REGISTER, REFERENCE_PREFIX, duplicateKey, PERIOD_SURFACE, THIRD_PARTY_NOTICE, DELEGABLE_ACTIONS, J4_FIELDS, type JourneyDef } from './journeys.ts';
 import { Store } from './store.ts';
 import { page, form, esc, SERVICE_DESC_PATH } from './html.ts';
 
@@ -78,6 +78,7 @@ Agents should use the declared surfaces below rather than driving the human inte
 
 ## The principal's channel (you cannot use these)
 - Audit record, notifications, and delegation control belong to the principal, not to you. Requests bearing agent identity are refused. Your principal can see every action you take on their behalf, and can suspend or revoke your delegation at any time.
+- Journey J4 gives and withdraws an agent's authority. It is the principal's act alone: no delegation conveys it, and one that named it would not widen what you may do. The consequential-actions register marks those actions agentExecutable:false. Do not attempt them.
 
 ## Rules (authoritative)
 - [Eligibility determination](${origin}/api/rules/ssp/determination): POST declared circumstances, receive a determination with its governing reason, legal provenance and binding/indicative status. Authoritative. Do not infer eligibility from prose guidance. The response carries a determinationId: present it with a consequential action so your principal's audit record shows what you relied on.
@@ -94,15 +95,22 @@ If your session is interrupted, the principal's entered data is not lost: read t
 
 function journeyDescription(origin: string, id: string, j: JourneyDef): Record<string, unknown> {
   const entryStep = j.spec.steps[0].id;
+  const actions = CA_REGISTER.filter((a) => a.journeyId === id);
+  // A journey no agent may drive must not advertise an agent surface. The schema
+  // stays discoverable (1.2.1) so an agent learns *why* it must not act; the
+  // state and step endpoints do not exist for it.
+  const agentDrivable = actions.length === 0 || actions.some((a) => a.agentExecutable !== false);
   return {
     id,
     title: j.spec.title,
     essential: true,
     entryPoint: `${origin}/journeys/${id}/steps/${entryStep}`,
-    consequentialActions: CA_REGISTER.filter((a) => a.journeyId === id),
+    consequentialActions: actions.map((a) => ({ ...a, agentExecutable: a.agentExecutable !== false })),
     safeSteps: safeSteps(j.spec), // 3.4.3
     tools: `${origin}/api/journeys/${id}/schema`, // 1.2.1
-    state: `${origin}/api/journeys/${id}/state`,
+    ...(agentDrivable
+      ? { state: `${origin}/api/journeys/${id}/state` }
+      : { agentExecutable: false, principalOnly: 'Giving or withdrawing an agent\'s authority is the principal\'s act alone (5.1.2). No delegation conveys it.' }),
     ...(id === 'J2' ? { reportingPeriod: `${origin}/api/journeys/J2/period` } : {}), // 2.6.2
   };
 }
@@ -133,7 +141,9 @@ function serviceDescription(origin: string): Record<string, unknown> {
     },
     essentialityTest: { reference: `${origin}/api/essentiality-test`, summary: 'A journey is essential if it lodges, varies or reports on a claim for the payment.' },
     journeys: Object.entries(JOURNEYS).map(([id, j]) => journeyDescription(origin, id, j)), // 1.1.2
-    consequentialActionsRegister: CA_REGISTER, // 5.3.1: designation is a machine surface
+    // 5.3.1: designation is a machine surface. `agentExecutable: false` marks the
+    // actions that belong to the principal alone — no delegation conveys them.
+    consequentialActionsRegister: CA_REGISTER.map((a) => ({ ...a, agentExecutable: a.agentExecutable !== false })),
     // The principal's own channel — an agent cannot reach any of these (5.4.1, 5.5.1, 5.5.2).
     principalChannel: {
       audit: `${origin}/api/audit`,
@@ -155,6 +165,26 @@ function serviceDescription(origin: string): Record<string, unknown> {
       instrument: { id: INSTRUMENT_ID, version: RULES_VERSION, commencement: INSTRUMENT_COMMENCEMENT },
     },
   };
+}
+
+/** An accessible sign-in form: labelled control, described-by hint (2.2.1). */
+function signInForm(): string {
+  return `<form method="post" action="/journeys/J4/authenticate">
+<div>
+<label for="principalSecret">Your credential</label>
+<p id="principalSecret-description">This is yours. Never give it to an agent — an agent that held it could confirm actions in your name.</p>
+<input type="password" name="principalSecret" id="principalSecret" required aria-required="true" aria-describedby="principalSecret-description">
+</div>
+<button type="submit">Sign in</button>
+</form>`;
+}
+
+/** 2.2.2: the error names the constraint and the remediation, and anchors to the control. */
+function errorSummaryFor(field: string, message: string, remediation: string): string {
+  return `<div role="alert" aria-labelledby="error-summary-title">
+<h2 id="error-summary-title">There is a problem</h2>
+<ul><li><a href="#${esc(field)}">${esc(message)} ${esc(remediation)}</a></li></ul>
+</div>`;
 }
 
 async function readBody(req: http.IncomingMessage): Promise<string> {
@@ -388,7 +418,7 @@ export function createFixtureServer(store: Store): http.Server {
         return json(res, 200, { surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED }, ...PERIOD_SURFACE });
       }
 
-      const schemaMatch = /^\/api\/journeys\/(J[123])\/schema$/.exec(path);
+      const schemaMatch = /^\/api\/journeys\/(J[1234])\/schema$/.exec(path);
       if (req.method === 'GET' && schemaMatch) {
         const jid = schemaMatch[1];
         const j = JOURNEYS[jid];
@@ -402,6 +432,8 @@ export function createFixtureServer(store: Store): http.Server {
             kind: s.kind,
             actionId: s.actionId,
             confirmationDesignated: s.actionId ? CA_REGISTER.find((a) => a.id === s.actionId)?.confirmationDesignated : undefined,
+            // 5.3.1 extended: the register tells an agent where it must not act at all.
+            agentExecutable: s.actionId ? CA_REGISTER.find((a) => a.id === s.actionId)?.agentExecutable !== false : true,
             endpoint: `${origin}/api/journeys/${jid}/steps/${s.id}`,
             inputSchema: formJsonSchema(`${jid.toLowerCase()}-${s.id}`, s.title, j.fields[s.id]),
           })),
@@ -445,6 +477,17 @@ export function createFixtureServer(store: Store): http.Server {
         return json(res, 200, { resumed: true, state: journeyState(JOURNEYS[jid].spec, draft) });
       }
 
+      // ---- J4 is the principal's journey; no agent surface exists for it ----
+      if (/^\/api\/journeys\/J4\//.test(path)) {
+        return json(res, 403, {
+          error: {
+            code: 'AGENT_MAY_NOT_EXECUTE',
+            message: 'Giving or withdrawing an agent\'s authority is the principal\'s act alone. No delegation conveys it, and one that named it would not widen what you may do.',
+            principalJourney: `${origin}/journeys/J4/steps/authority`,
+          },
+        });
+      }
+
       // ---- Tool calls (agent path) ----
       const toolMatch = /^\/api\/journeys\/(J[123])\/steps\/([a-z]+)$/.exec(path);
       if (req.method === 'POST' && toolMatch) {
@@ -480,6 +523,87 @@ export function createFixtureServer(store: Store): http.Server {
           confirmation: body.confirmation,
           determinationId: body.determinationId, // 5.4.1: what the agent relied on
         }, now());
+      }
+
+      // ---- J4: the principal manages their agents' authority (5.1.2, Level A) ----
+      if (path === '/journeys/J4/authenticate' && req.method === 'POST') {
+        const raw = Object.fromEntries(new URLSearchParams(await readBody(req)));
+        const principalId = store.principalForSecret(String(raw.principalSecret ?? ''));
+        if (!principalId) {
+          return html(res, 422, page('Sign in', `${errorSummaryFor('principalSecret', 'That did not match any account.', 'Check the credential and try again.')}${signInForm()}`));
+        }
+        res.writeHead(303, { location: '/journeys/J4/steps/authority', 'set-cookie': `principal=${principalId}; Path=/; HttpOnly; SameSite=Lax` });
+        return res.end();
+      }
+
+      const j4Match = /^\/journeys\/J4\/steps\/(authority|give|control)$/.exec(path);
+      if (j4Match) {
+        const stepId = j4Match[1];
+        const cookie = req.headers.cookie ?? '';
+        const principalId = /(?:^|;\s*)principal=([\w-]+)/.exec(cookie)?.[1];
+        if (!principalId) {
+          return html(res, 200, page('Sign in to manage your agents', `<p>Giving or withdrawing an agent's authority is something only you can do. Sign in to continue.</p>${signInForm()}`));
+        }
+
+        if (req.method === 'GET') {
+          if (stepId === 'authority') {
+            const list = store.delegationsFor(principalId);
+            const rows = list.length === 0
+              ? '<p>No agent currently has authority to act for you.</p>'
+              : `<table><caption>Agents acting for you</caption><thead><tr><th scope="col">Authority</th><th scope="col">Agent</th><th scope="col">Journeys</th><th scope="col">Actions</th><th scope="col">Ends</th><th scope="col">Status</th></tr></thead><tbody>${
+                  list.map((d) => `<tr><td>${esc(d.id)}</td><td>${esc(d.agentId)}</td><td>${esc(d.scope.journeys.join(', '))}</td><td>${esc(d.scope.actions.join(', '))}</td><td>${esc(d.validTo.slice(0, 10))}</td><td>${esc(d.status)}</td></tr>`).join('')
+                }</tbody></table>`;
+            return html(res, 200, page('Agents acting for you', `${rows}
+<p>You can <a href="/journeys/J4/steps/give">give an agent authority</a>, or <a href="/journeys/J4/steps/control">suspend, revoke or reinstate</a> authority you have already given.</p>
+<p>No agent can perform either of those things — not even one you have given wide authority. Revoking is permanent and takes effect before your agent's next action.</p>`));
+          }
+          return html(res, 200, page(stepId === 'give' ? 'Give an agent authority' : 'Suspend, revoke or reinstate authority',
+            `${stepId === 'give' ? '<p>Give the narrowest authority that lets the agent do what you want. Authority must end on a date you choose.</p>' : '<p>Revoking is permanent. Suspending can be undone.</p>'}${form(path, J4_FIELDS[stepId], {}, [], stepId === 'give' ? 'Give authority' : 'Apply')}`));
+        }
+
+        if (req.method === 'POST') {
+          const raw = Object.fromEntries(new URLSearchParams(await readBody(req)));
+          const errors = validateValues(J4_FIELDS[stepId], raw);
+          if (errors.length > 0) {
+            return html(res, 422, page(stepId === 'give' ? 'Give an agent authority' : 'Suspend, revoke or reinstate authority', form(path, J4_FIELDS[stepId], raw, errors, stepId === 'give' ? 'Give authority' : 'Apply')));
+          }
+
+          if (stepId === 'give') {
+            const actions = String(raw.actions).split(',').map((s) => s.trim());
+            // Defence in depth, and honestly labelled: the field's enum already
+            // refuses any non-delegable action, with an accessible error naming
+            // what is allowed, so this branch is unreachable through the form.
+            // It guards the invariant against a future client that is not this form.
+            if (actions.some((a) => !(DELEGABLE_ACTIONS as readonly string[]).includes(a))) {
+              return json(res, 400, { error: { code: 'ACTION_NOT_DELEGABLE', message: 'The power to give or withdraw authority cannot itself be given away.' } });
+            }
+            const delegationId = store.nextReference('DLG-');
+            store.addDelegation({
+              id: delegationId, principalId, agentId: String(raw.agentId),
+              scope: { journeys: String(raw.journeys).split(',').map((s) => s.trim()), actions },
+              validFrom: now(), validTo: `${String(raw.validTo)}T23:59:59Z`, status: 'active',
+            });
+            const reference = store.nextReference(REFERENCE_PREFIX['CA-4a']);
+            store.effects.push({ journeyId: 'J4', actionId: 'CA-4a', reference, principalId, values: { ...raw }, at: now(), attribution: { agentOriginated: false } });
+            store.notify(principalId, { at: now(), actionId: 'CA-4a', journeyId: 'J4', reference, message: `You gave ${String(raw.agentId)} authority to act for you until ${String(raw.validTo)} (${delegationId}). You can suspend or revoke it at any time.` });
+            return html(res, 201, page('Authority given', `<p>${esc(String(raw.agentId))} may now act for you until ${esc(String(raw.validTo))}.</p><p>Your reference is <strong>${esc(reference)}</strong>, and the authority is <strong>${esc(delegationId)}</strong>.</p><p><a href="/journeys/J4/steps/authority">Back to agents acting for you</a></p>`));
+          }
+
+          const target = store.delegation(String(raw.delegationId));
+          if (!target || target.principalId !== principalId) {
+            return html(res, 422, page('Suspend, revoke or reinstate authority', `${errorSummaryFor('delegationId', 'No authority of yours has that reference.', 'Check the reference on the previous page.')}${form(path, J4_FIELDS.control, raw, [], 'Apply')}`));
+          }
+          if (target.status === 'revoked') {
+            return html(res, 409, page('Already revoked', '<p>That authority was revoked. Revoking is permanent — give new authority instead.</p>'));
+          }
+          const change = String(raw.change);
+          const status = change === 'suspend' ? 'suspended' : change === 'revoke' ? 'revoked' : 'active';
+          store.setDelegationStatus(target.id, status);
+          const reference = store.nextReference(REFERENCE_PREFIX['CA-4b']);
+          store.effects.push({ journeyId: 'J4', actionId: 'CA-4b', reference, principalId, values: { ...raw }, at: now(), attribution: { agentOriginated: false } });
+          store.notify(principalId, { at: now(), actionId: 'CA-4b', journeyId: 'J4', reference, message: `You ${change}d the authority ${target.id}. It takes effect before that agent's next action.` });
+          return html(res, 200, page('Authority updated', `<p>Authority <strong>${esc(target.id)}</strong> is now <strong>${esc(status)}</strong>. It takes effect before that agent's next action.</p><p><a href="/journeys/J4/steps/authority">Back to agents acting for you</a></p>`));
+        }
       }
 
       // ---- HTML journeys (human path) ----

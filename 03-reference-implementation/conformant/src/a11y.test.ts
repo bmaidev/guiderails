@@ -103,6 +103,23 @@ const PAGES: Array<{ name: string; get: () => Promise<string> }> = [
     name: 'J3 payment step',
     get: async () => (await fetch(`${base}/journeys/J3/steps/payment`, { headers: { cookie: 'sid=a11y' } })).text(),
   },
+  {
+    // 5.1.2 requires the revocation journey to itself conform at Level A.
+    name: 'J4 sign-in (unauthenticated)',
+    get: async () => (await fetch(`${base}/journeys/J4/steps/authority`)).text(),
+  },
+  {
+    name: 'J4 authority list',
+    get: async () => (await fetch(`${base}/journeys/J4/steps/authority`, { headers: { cookie: 'principal=P-A11Y' } })).text(),
+  },
+  {
+    name: 'J4 give authority',
+    get: async () => (await fetch(`${base}/journeys/J4/steps/give`, { headers: { cookie: 'principal=P-A11Y' } })).text(),
+  },
+  {
+    name: 'J4 control authority',
+    get: async () => (await fetch(`${base}/journeys/J4/steps/control`, { headers: { cookie: 'principal=P-A11Y' } })).text(),
+  },
 ];
 
 for (const p of PAGES) {
