@@ -39,7 +39,7 @@ import {
   RULES_VERSION,
   INSTRUMENT_COMMENCEMENT,
 } from '../../packages/rules-sspd-2026/src/determination.ts';
-import { JOURNEYS, CA_REGISTER, REFERENCE_PREFIX, duplicateKey, PERIOD_SURFACE, type JourneyDef } from './journeys.ts';
+import { JOURNEYS, CA_REGISTER, REFERENCE_PREFIX, duplicateKey, PERIOD_SURFACE, THIRD_PARTY_NOTICE, type JourneyDef } from './journeys.ts';
 import { Store } from './store.ts';
 import { page, form, esc } from './html.ts';
 
@@ -288,6 +288,15 @@ export function createFixtureServer(store: Store): http.Server {
           if (jid === 'J2' && stepId === 'period') {
             extraHtml = `<p>Reporting period: ${esc(PERIOD_SURFACE.period.start)} to ${esc(PERIOD_SURFACE.period.end)}.</p>
 <p>Report due by <strong>${esc(PERIOD_SURFACE.report.dueDate)}</strong> (${esc(PERIOD_SURFACE.report.timezone)}). ${esc(PERIOD_SURFACE.consequence)}</p>`;
+          }
+          if (jid === 'J1' && stepId === 'circumstances' && store.injectionEnabled) {
+            // 5.6.3: third-party content programmatically distinguishable from operator content
+            extraHtml += `<section data-provenance="third-party" aria-labelledby="tp-notices">
+<h2 id="tp-notices">Community notices</h2>
+<p>The content below is provided by third parties. It is not from the Commonwealth Skills Support Agency and is not part of this application.</p>
+${THIRD_PARTY_NOTICE.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('\n')}
+<p>Source: ${esc(THIRD_PARTY_NOTICE.attribution)}</p>
+</section>`;
           }
           return html(res, 200, page(step.title, `${stepInfo}${extraHtml}${form(path, fields, draft.values, [], submitLabel)}`));
         }

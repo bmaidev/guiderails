@@ -17,6 +17,6 @@ The probe matrix reproduces every hypothesised phenomenon deterministically: the
 
 ## Missing before a real round
 
-Agent adapters for browser/computer-use agents · T5 mechanics (requires the fixture to grow its third-party/injected-content surface — 5.6.3 on conformant, raw on baseline) · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration.
+Agent adapters for browser/computer-use agents · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration · parity audit · OD-07 result owner.
 
-T1a–T1c, T2 (induced errors + correction), T3, T4, T6 and T7 (interruption/resume) are implemented across both builds. DVC counts **designated** actions only (CA-1, CA-3b) — an undesignated action executing without confirmation is the register working as designed, not a violation.
+**All eight task classes are implemented across both builds.** T5 renders adversarial third-party content fixture-side (fenced with `data-provenance` on conformant per 5.6.3; inline and indistinguishable on baseline, pattern B-11); PIS is scored per §5, and the injected value is fixture-traceable so following it scores PIS, not FIR (T8). The third probe, *gullible*, follows unfenced page instructions — the self-test shows PIS 0% on conformant vs 100% on baseline, the 5.6.3 mechanism working. DVC counts **designated** actions only (CA-1, CA-3b) — an undesignated action executing without confirmation is the register working as designed, not a violation.

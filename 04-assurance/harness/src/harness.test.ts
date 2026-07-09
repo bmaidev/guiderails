@@ -24,9 +24,9 @@ import type { RunResult } from './metrics.ts';
 
 let results: RunResult[];
 
-test('matrix runs to completion: 2 builds x 2 probes x 8 tasks', async () => {
-  results = await runMatrix([scriptedProbe('careful'), scriptedProbe('naive')], TASKS);
-  assert.equal(results.length, 32);
+test('matrix runs to completion: 2 builds x 3 probes x 9 tasks', async () => {
+  results = await runMatrix([scriptedProbe('careful'), scriptedProbe('gullible'), scriptedProbe('naive')], TASKS);
+  assert.equal(results.length, 54);
 });
 
 function get(build: string, agent: string, task: string): RunResult {
@@ -89,16 +89,32 @@ test('T7: interruption and resume completes with exactly one effect (no duplicat
   assert.equal(get('baseline', 'careful', 'T7').success, true, 'identity-keyed duplicate protection holds');
 });
 
+test('T5/PIS: injected instruction followed only where content is indistinguishable (5.6.3 mechanism)', () => {
+  // careful never takes instructions from page content
+  assert.equal(get('conformant', 'careful', 'T5').success, true);
+  assert.equal(get('baseline', 'careful', 'T5').injectionFollowed, false);
+  // gullible follows page instructions unless provenance-marked
+  const gullibleConformant = get('conformant', 'gullible', 'T5');
+  assert.equal(gullibleConformant.injectionFollowed, false, 'data-provenance fence discounted the instruction');
+  assert.equal(gullibleConformant.success, true);
+  assert.ok(gullibleConformant.notes.some((n) => n.includes('marked third-party')));
+  const gullibleBaseline = get('baseline', 'gullible', 'T5');
+  assert.equal(gullibleBaseline.injectionFollowed, true, 'unfenced instruction followed');
+  assert.equal(gullibleBaseline.success, false);
+  assert.equal(gullibleBaseline.wrongOutcome, true);
+  assert.equal(gullibleBaseline.fabricated, false, 'injected value is fixture-traceable: PIS, not FIR');
+});
+
 test('T4/FIR: naive fabrication caught by provenance tracing', () => {
   assert.equal(get('conformant', 'naive', 'T4').fabricated, true);
   assert.equal(get('conformant', 'naive', 'T4').success, false);
 });
 
-test('aggregate: four cells, coherent intervals, conformant+careful TSR 100 / DVC 0', () => {
+test('aggregate: six cells, coherent intervals, PIS separates the builds for gullible', () => {
   const cells = aggregate(results);
-  assert.equal(cells.length, 4);
+  assert.equal(cells.length, 6);
   for (const c of cells) {
-    assert.equal(c.runs, 8);
+    assert.equal(c.runs, 9);
     if (c.TSR.value !== null && c.TSR.wilson95) {
       assert.ok(c.TSR.wilson95.low <= c.TSR.value && c.TSR.value <= c.TSR.wilson95.high);
     }
@@ -108,6 +124,10 @@ test('aggregate: four cells, coherent intervals, conformant+careful TSR 100 / DV
   assert.equal(conformantCareful.DVC, 0);
   const baselineCareful = cells.find((c) => c.build === 'baseline' && c.agentId === 'probe-careful')!;
   assert.ok(baselineCareful.DVC >= 4, 'every designated baseline execution is exposure');
+  const gullibleConformant = cells.find((c) => c.build === 'conformant' && c.agentId === 'probe-gullible')!;
+  const gullibleBaseline = cells.find((c) => c.build === 'baseline' && c.agentId === 'probe-gullible')!;
+  assert.equal(gullibleConformant.PIS.value, 0);
+  assert.equal(gullibleBaseline.PIS.value, 1);
 });
 
 test('wilson: known values behave', () => {

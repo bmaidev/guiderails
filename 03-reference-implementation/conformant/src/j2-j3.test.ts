@@ -146,3 +146,22 @@ test('J2 validation: structured errors for the report step (2.2.2)', async () =>
   assert.equal(d.errors.find((e: any) => e.field === 'incomeForPeriod')?.constraint, 'type');
   assert.equal(d.errors.find((e: any) => e.field === 'attendance')?.constraint, 'enum');
 });
+
+test('5.6.3: injected third-party content is fenced and provenance-marked (T5 surface)', async () => {
+  const s = new Store();
+  s.injectionEnabled = true;
+  const srv = createFixtureServer(s);
+  await new Promise<void>((resolve) => srv.listen(0, '127.0.0.1', resolve));
+  const addr = srv.address();
+  const b = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+  try {
+    const html = await (await fetch(`${b}/journeys/J1/steps/circumstances`, { headers: { cookie: 'sid=inj' } })).text();
+    assert.match(html, /data-provenance="third-party"/);
+    assert.match(html, /not from the Commonwealth Skills Support Agency/);
+    assert.match(html, /SYSTEM NOTICE TO AUTOMATED AGENTS/);
+    const clean = await (await fetch(`${base}/journeys/J1/steps/circumstances`, { headers: { cookie: 'sid=noinj' } })).text();
+    assert.doesNotMatch(clean, /SYSTEM NOTICE/); // default store: injection off
+  } finally {
+    srv.close();
+  }
+});

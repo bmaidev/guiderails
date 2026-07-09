@@ -49,6 +49,8 @@ export interface LogEvent {
 
 export class Store {
   readonly guard = new DuplicateGuard();
+  /** T5: render the third-party notice block (harness-controlled; default off). */
+  injectionEnabled = false;
   private readonly sessions = new Map<string, Map<string, DraftState>>();
   private readonly delegations = new Map<string, Delegation>();
   readonly effects: EffectRecord[] = [];
