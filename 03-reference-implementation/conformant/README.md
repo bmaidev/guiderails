@@ -22,7 +22,7 @@ npm start       # http://127.0.0.1:3100 — dev delegation DLG-DEV-1 seeded
 | ID | Item |
 |---|---|
 | OI-1 | Evidence upload is modelled as staged-document selection; real multipart upload handling to follow (FIXTURE-SPEC §4). |
-| OI-2 | WCAG 2.2 AA automated checks (Playwright + axe-core) in CI plus the recorded manual pass — required before any conformance language attaches to this build. |
+| OI-2 | **Partially closed:** axe-core runs over every J1 page state in CI (jsdom; colour-contrast excluded as jsdom does not render) and violations fail the build. Still open: the recorded manual pass, colour-contrast verification, and a real-browser (Playwright) upgrade — required before any conformance language attaches to this build. |
 | OI-3 | WebMCP declarative/imperative surface and `agentInvoked`-class signals — pending primary spec read (RESEARCH-DOSSIER pass 2) and the Storybook addon increment. |
 | OI-4 | J2 (activity report) and J3 (update details), delegation issuance/revocation journeys (5.1.2, 5.5.1), audit-record retrieval (5.4.1), notification delivery (5.5.2 — obligation currently logged, not delivered). |
 | OI-5 | Session time limit is declared but not enforced; expiry-warning behaviour to accompany enforcement (2.6.1). |
