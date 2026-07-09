@@ -28,7 +28,7 @@ Guiderails: an open, WCAG-shaped conformance standard making government services
 ## Repo map (canonical)
 
 ```
-CLAUDE.md · AGENTS.md · README.md · DECISIONS.md · LICENSING.md
+CLAUDE.md · AGENTS.md · README.md · DECISIONS.md · LICENSING.md · llms.txt
 00-thesis/            THESIS.md
 01-research/          RESEARCH-DOSSIER.md · LEGAL-ISSUES-BRIEF.md · sources/
 02-model/             MODEL.md (canonical) · MODEL-SKELETON.md (superseded) · glossary/ · techniques/
@@ -89,7 +89,7 @@ Halt and raise to the steward before proceeding if a task would: touch a LEDA ga
 
 ## Dogfooding
 
-This repository must never fail its own standard's spirit. As the model matures, the repo grows its own machine surfaces — `glossary.yaml`, a root `llms.txt`, machine-readable conformance claims — because a project about agent accessibility that agents cannot navigate refutes itself. When you notice the repo violating a principle it preaches, that's a tracked defect, not an irony.
+This repository must never fail its own standard's spirit. As the model matures, the repo grows its own machine surfaces — a root `llms.txt` (published; criterion 1.1.4 applied to ourselves), `glossary.yaml` and machine-readable conformance claims (outstanding) — because a project about agent accessibility that agents cannot navigate refutes itself. When you notice the repo violating a principle it preaches, that's a tracked defect, not an irony.
 
 ## Quality bar, restated
 
