@@ -83,7 +83,7 @@ Published with every result round: harness source, fixture source, frozen briefs
 
 ## 11. Threats to validity (standing register)
 
-- **Fixture realism** → pattern-by-pattern derivation from real services, practitioner review, LEDA gate C2.
+- **Fixture realism** → pattern-by-pattern derivation from real services, logged in the source register and cited by the pattern catalogue (RESEARCH-DOSSIER §2.1); practitioner review; LEDA gate C2. **Stated limitation:** the measured prevalence behind the baseline's commission patterns is drawn from general-web home pages, not government transactional forms; results must say so.
 - **Contamination/memorisation** → fictional scheme, private until publication, holdout rotation.
 - **Goodharting the benchmark** → holdouts; taxonomy-driven criterion updates; the benchmark serves the standard, not vice versa.
 - **Vendor drift** → version pinning, dated results, re-run policy.
