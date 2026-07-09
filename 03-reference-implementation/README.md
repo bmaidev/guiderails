@@ -11,12 +11,22 @@
 | `conformant/` | The Guiderails AA build: same journeys, same outcomes, plus the conformance feature set (declared tools, rules endpoint, delegation, confirmation, attribution, resumability) |
 | `parity/` | The pattern catalogue with real-world derivations, and the independent parity audit report (committed before any benchmark round) |
 
+## Implementation layer (D-013, Proposed)
+
+Conformance features are packaged design-system-agnostically, because no mandated federal design system exists (RESEARCH-DOSSIER.md §3.5):
+
+- **Headless behaviour package** — WebMCP annotation helpers, tool-schema extraction from form semantics, confirmation-checkpoint and delegation-status logic; no rendering opinions.
+- **Guiderails Storybook addon** — an agent's-eye panel per story (extracted accessible name, type and constraints; the tool schema derived from the markup; a criterion checklist), with per-story criterion checks in the Playwright-based test runner so agent-legibility regressions fail CI exactly as a11y regressions do under `@storybook/addon-a11y` (the architectural precedent — S-54). Story parameters map components to the criteria they implement, so a design system documents its own conformance coverage.
+- **Per-system integrations** — candidates: AgDS, GOLD, Ripple (S-51–S-53).
+
+Honest scoping — **conformance by default, claims by journey**: components can carry Legible almost entirely, declarative Operable at component level, and Accountable *patterns* (confirmation-checkpoint component, delegation-status display, attribution badge). Rules endpoints, delegation flows and duplicate protection live in service wiring. The design system makes AA cheap; the service still earns the claim, per journey (MODEL.md §4). Package directory placement is added to the repo map when D-013 is decided.
+
 ## Build order (sequencing is load-bearing)
 
 1. **Fixture specification** (this PR) — scheme, rules, journeys, parity boundary.
 2. **Task briefs drafted and frozen** — before fixture finalisation (methodology §3, anti-gaming). Holdout briefs are authored by someone not involved in fixture construction and are not committed to this repository until first results publish.
 3. **Shared rules module + test vectors** — the executable single source of truth for SSPD-2026; both builds import it (parity requirement).
-4. **Conformant build**, then **baseline build** — baseline features are removed/degraded strictly per catalogued patterns, each with a logged real-world derivation. A pattern without a documented source does not go in.
+4. **Implementation layer + conformant build**, then **baseline build** — the headless behaviour package and Guiderails Storybook addon (D-013) are developed with the conformant build, which consumes them: the demo and the product are the same artefact. Baseline features are removed/degraded strictly per catalogued patterns, each with a logged real-world derivation. A pattern without a documented source does not go in.
 5. **Parity audit** — by someone who did not build either version; report committed to `parity/`.
 6. **Harness + preregistration** — analysis pre-registered (write-once, `04-assurance/preregistration/`) before first runs.
 7. **Result round 1** — under the methodology's protocol; result owner assigned in DECISIONS.md (OD-07) before runs begin.
@@ -31,7 +41,7 @@ These constraints require people other than the primary builder; they are flagge
 
 ## Engineering standards (inherited from CLAUDE.md)
 
-Conformant build passes WCAG 2.2 AA in CI plus a recorded manual pass; a11y regressions fail the build. Lockfiles committed; no external network calls at runtime; no secrets; no real personal data. Apache-2.0 headers on code. Proposed stack is DECISIONS.md D-013 — code lands only once that entry reads *Decided*.
+Conformant build passes WCAG 2.2 AA in CI plus a recorded manual pass; a11y regressions fail the build. Lockfiles committed; no external network calls at runtime; no secrets; no real personal data. Apache-2.0 headers on code. Architecture is DECISIONS.md D-013 (design-system-agnostic implementation layer, above) — implementation code lands only once that entry reads *Decided*.
 
 ## Publication posture
 
