@@ -1,0 +1,20 @@
+{
+  "name": "@guiderails/harness",
+  "version": "0.1.0",
+  "description": "Benchmark harness for the Guiderails fixture (BENCHMARK-METHODOLOGY.md): task registry, agent-adapter interface, run loop with environment reset, log-based scoring and metrics. Self-test uses scripted probes — NOT agents; self-test output is plumbing validation, never publishable numbers (D-008).",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/runner.ts"
+  },
+  "scripts": {
+    "selftest": "node src/main.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

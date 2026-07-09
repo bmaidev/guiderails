@@ -33,7 +33,7 @@ CLAUDE.md · AGENTS.md · README.md · DECISIONS.md · LICENSING.md
 01-research/          RESEARCH-DOSSIER.md · LEGAL-ISSUES-BRIEF.md · sources/
 02-model/             MODEL.md (canonical) · MODEL-SKELETON.md (superseded) · glossary/ · techniques/
 03-reference-implementation/  fixture/ · packages/ · baseline/ · conformant/ · parity/
-04-assurance/         BENCHMARK-METHODOLOGY.md · briefs/ · preregistration/ · rubrics/ · results/
+04-assurance/         BENCHMARK-METHODOLOGY.md · briefs/ · harness/ · preregistration/ · rubrics/ · results/
 05-pilot/             CO-DESIGN-FRAMEWORK.md · easy-read/ · leda/
 06                    deliberately absent — private companion repo (D-004). Do not create.
 07-governance/        stewardship · liaison · conformance-claim format
