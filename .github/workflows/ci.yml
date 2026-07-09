@@ -19,6 +19,7 @@ jobs:
           - 03-reference-implementation/baseline
           - 03-reference-implementation/parity
           - 04-assurance/harness
+          - 07-governance/log-check
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -30,15 +30,16 @@ export interface ConsequentialActionSpec {
   /** 5.3.1: whether principal confirmation is designated for this action. */
   confirmationDesignated: boolean;
   /**
-   * Whether any agent may execute this action at all. Defaults to true.
+   * 5.3.3: whether any agent may execute this action at all. Defaults to true;
+   * `false` designates a **principal-only action**.
    *
    * The register as 5.3.1 describes it knows two kinds of action: agent-executable
    * with confirmation, and agent-executable without. Some actions are neither.
    * Issuing, widening or reinstating a delegation is the clearest case: an agent
    * permitted to do it can grant itself a new, unbounded delegation, and 5.1.2's
    * scoping and time-bounding become decorative. Such actions belong to the
-   * principal alone, and no delegation — however carefully scoped — can convey
-   * them. See MODEL.md §8 Q12.
+   * principal alone, and by 5.1.3 no delegation — however carefully scoped —
+   * conveys them.
    */
   agentExecutable?: boolean;
 }
@@ -83,7 +84,7 @@ export type RejectionCode =
   | 'SCOPE_JOURNEY'
   | 'SCOPE_ACTION'
   | 'AGENT_MISMATCH'
-  /** The action is the principal's alone; no delegation can convey it. */
+  /** 5.3.3: the action is the principal's alone; by 5.1.3 no delegation conveys it. */
   | 'AGENT_MAY_NOT_EXECUTE'
   | 'CONFIRMATION_REQUIRED'
   | 'CONFIRMATION_PRINCIPAL_MISMATCH'
@@ -129,9 +130,9 @@ function reject(code: RejectionCode, message: string): AuthorisationResult {
 export function authoriseConsequentialAction(req: AuthorisationRequest): AuthorisationResult {
   const { action, delegation, confirmation, at, agentId, redeemConfirmation } = req;
 
-  // Checked before anything else, and independently of the delegation presented.
-  // A delegation that names this action is not a wider grant — it is a defective
-  // one, and honouring it would let an agent authorise itself.
+  // 5.3.3: checked before anything else, and independently of the delegation
+  // presented. A delegation that names this action is not a wider grant — it is a
+  // defective one, and honouring it would let an agent authorise itself.
   if (action.agentExecutable === false) {
     return reject(
       'AGENT_MAY_NOT_EXECUTE',

@@ -1,0 +1,16 @@
+{
+  "name": "@guiderails/log-check",
+  "version": "0.1.0",
+  "description": "Machine checks on the repository's own governance artefacts: the decision log's statuses, and the model's criterion counts and numbering. A decision that binds the artefacts must read Decided; a criterion number is never reused. D-012: the repo's own governance must pass the project's governance test.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
