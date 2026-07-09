@@ -1,0 +1,19 @@
+{
+  "name": "@guiderails/agent-surface",
+  "version": "0.1.0",
+  "description": "Headless behaviour package for Guiderails conformance features: field semantics and tool-schema derivation (Legible/Operable), journey-state surfaces, delegation and confirmation-checkpoint logic, duplicate protection (Accountable). Framework-free; design-system integrations and the fixture's conformant build consume it.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
