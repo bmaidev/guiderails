@@ -1,6 +1,6 @@
 # Research dossier
 
-**Status:** v0.1, compiled 9 July 2026. Living document.
+**Status:** v0.2, compiled 9 July 2026. Living document. v0.2 adds §2.1 (baseline pattern derivations, S-55–S-62).
 
 **Verification key:**
 - **[VERIFIED]** — primary or official source (standards body, government publication, specification text) accessed on the date in the source register.
@@ -76,6 +76,42 @@ Research on agent-targeting attacks documents prompt injection via page content 
 - **WCAG 2.2** (W3C, October 2023) is current; Level AA comprises 86 success criteria including nine new since 2.1 [S-27] **[SECONDARY]**. The four POUR principles conclude with **Robust**: content must be reliably interpretable by a wide variety of user agents, including assistive technologies [S-20] **[VERIFIED — AHRC restatement of W3C]**.
 - Practitioner analysis converges on the mechanism: browser agents consume the same semantic layer as assistive technology — landmarks, headings, accessible names, roles, input types — and degrade to brittle visual heuristics without it [S-21] **[VENDOR CLAIM — mechanism is sound and widely echoed; commission or cite independent measurement in pass 2]**.
 - W3C also maintains ATAG (authoring tools) and UAAG (user agents) alongside WCAG [S-44-adjacent, S-20]. UAAG is a conceptual precedent worth studying: guidance aimed at the *consuming agent* rather than the content. **[Pass-2 item: review UAAG and any W3C AI-agent accessibility activity, including WAI discussions.]**
+
+### 2.1 Prevalence of the failures the baseline replicates (benchmark control derivations)
+
+The benchmark's baseline build is a **scientific control, not a strawman**: every way in which it is worse than the conformant build must be a pattern documented in the wild (`03-reference-implementation/parity/PATTERN-CATALOGUE.md`). This section is the evidence base for those patterns. The catalogue cites only the S-xx identifiers below; the sources are named here and never in fixture materials (D-009).
+
+Two evidence classes, and the distinction matters. Conflating them would be the strawman charge in miniature.
+
+- **Commission** — the service does something documented to exclude people. Prevalence is measurable, and it is measured.
+- **Omission** — the service does not do something the standard requires. There is no prevalence to measure because the affirmative feature is essentially absent from public services; the evidence is the feature's demonstrated rarity, and authoritative recommendations that it *ought* to exist. An omission pattern is the default state of the web, which is precisely why it cannot be a contrivance.
+
+**Commission patterns.**
+
+- **Unlabelled form controls.** The WebAIM Million (February 2026, automated analysis of 1,000,000 home pages) found **95.9%** of home pages carried detected WCAG 2 failures, at **56.1** errors per page — a 10.1% worsening year on year. Missing form input labels appeared on **51%** of pages, and **33.1%** of all form inputs were not properly labelled by any of `<label>`, `aria-label`, `aria-labelledby` or `title` [S-55] **[VERIFIED — primary, measured]**.
+- **Meaning carried by colour alone.** W3C documents this as failure **F73** of success criterion 1.4.1 (links not visually evident without colour vision), with Understanding 1.4.1 covering colour-only information generally [S-60] **[VERIFIED — normative]**. Adjacent measured signal: low-contrast text on **83.9%** of home pages [S-55]. Note honestly that *colour-only conveyance* is not separately measured at scale; the pattern's warrant is its documentation as a recurring failure, not a prevalence figure.
+- **Guidance published as PDF only.** The UK Government Digital Service states PDFs "do not work well with assistive technologies", that PDF "is never fully accessible to every type of assistive technology", and no longer permits PDF publication on GOV.UK without an accessible HTML or open-document equivalent [S-58] **[VERIFIED — UK government primary]**. The Australian Government Style Manual directs authors to create HTML rather than PDF, and to provide an accessible alternative format where PDF is unavoidable [S-59] **[VERIFIED — Australian government primary]**. Both exist because the practice they correct is common.
+- **Session timeout with silent data loss, and no resume.** WCAG 2.2.1 (Timing Adjustable, Level A) exists for this. The W3C WAI cognitive-accessibility design pattern *Avoid Data Loss and "Timeouts"* records the user need directly — *"I need time to complete my work. I do not want a session to timeout while I try to find the information needed"* — and warns against losing entered data when a user must pause a long process and return [S-57] **[VERIFIED — W3C]**. Users whose cognitive capacity varies with fatigue are the population most likely to be transacting with the services in scope.
+- **Challenge gate with no accessible alternative.** The W3C Group Draft Note *Inaccessibility of CAPTCHA* (16 December 2021) finds that a CAPTCHA "not only separates computers from humans, but also often prevents people with disabilities from performing the requested procedure", amounting to **"a denial of service to these users"**; it further records that reCAPTCHA v2 increasingly declines to provide an audio alternative, excluding deaf and hard-of-hearing users [S-56] **[VERIFIED — W3C]**. This is the criterion 3.3.1 case exactly: a gate an authorised agent and an assistive-technology user both fail.
+- **Validation errors not associated with the control in error.** WCAG 3.3.1 (Error Identification, Level A) requires the item in error be identified in text. WebAIM's technique guidance states errors must be associated with their controls (labelling or `aria-describedby`) and that a mechanism should carry the user to the field concerned; without it, screen-reader users cannot determine which field failed [S-62] **[VERIFIED — authoritative practitioner guidance]**.
+
+**Omission patterns.** These are the absences the standard exists to fill.
+
+- **No authoritative rules endpoint.** The Royal Commission into the Robodebt Scheme recommends (**recommendation 17.1**) that departments publish, in plain language, that automated decision-making is used and how it works, and that **business rules and algorithms be made available to enable independent expert scrutiny** [S-61] **[VERIFIED — Royal Commission primary]**. A recommendation to publish rules is direct evidence that rules are not published. Rules-as-Code deployments exist but remain rare and mostly pilot-scale [S-41, S-43, S-44, S-45]. The baseline's prose-and-PDF eligibility guidance is therefore the ordinary case, and its omission of a non-obvious interacting condition is the documented failure mode of Australian service automation.
+- **No delegation, confirmation checkpoint, attribution or agent-action record.** The DTA's Agentic AI addendum governs agents *operated by agencies*; nothing in the DXP or the AI policy suite addresses agents operated by or for members of the public arriving at agency services [S-36, S-37, S-38] **[VERIFIED — DTA primary]**. No identified national government has published citizen-side agent-access standards (§6). The affirmative feature does not exist to be measured.
+- **No journey-state or declared-tool machine surface.** WebMCP is a Draft Community Group Report under incubation, with experimental browser support only [S-01, S-02, S-06]. The absence of declared tools and machine-readable journey state is the current universal condition, not a degradation invented for the control.
+- **Third-party content rendered without provenance marking.** Rendering third-party or user-generated content indistinguishably from the operator's own is ordinary practice. Research documents agent-targeting prompt injection carried in page content, including strings addressed to agents inside accessibility markup and hidden DOM [S-49] **[VERIFIED — peer-review preprint]**.
+- **No agent-discovery file or machine-surface link relation.** Research published 31 March 2026 found **7.4%** of Fortune 500 sites had implemented `llms.txt`, and Google states it is not a Search ranking input [S-09, S-10] **[SECONDARY]**. Adoption among government services is lower still. The discovery surface criterion 1.1.4 requires is, at present, almost universally absent.
+
+**Consequence for the benchmark.** Every catalogued pattern now carries a derivation. Under the catalogue's own rule — *patterns still TO VERIFY at round time are removed from the baseline for that round* — none would now be removed.
+
+**Three limitations, recorded rather than rounded up.** Each is the kind of objection a sceptical reviewer raises first, and each is fair.
+
+1. **The prevalence sample is general-web home pages, not government transactional forms.** [S-55] analyses the top one million *home pages*. Government multi-step transactional journeys — the thing this fixture models — are not separately measured there, and are plausibly better than the web mean (they are subject to WCAG 2.2 AA obligations under the DXP and the DDA) or worse (they are older, larger, and form-dense). We do not know which. A government-specific measurement is a tracked research task; until it exists, the commission patterns are evidenced as *widespread web practice that public services are not known to be exempt from*, which is weaker than *measured in public services* and is stated that way.
+2. **Colour-only conveyance has no prevalence measurement** [S-60] — only a documented failure technique. Low contrast (83.9%) is adjacent, not the same failure.
+3. **Discovery-file adoption data is secondary and not government-specific** [S-09, S-10].
+
+None of the three is grounds to remove a pattern: the baseline degrades only in ways that are documented as real, and for the omission patterns the affirmative feature is demonstrably rare or absent everywhere. But a published round must state these limitations in its threats-to-validity, not bury them.
 
 **Framing consequence:** the standard's Legible principle is not adjacent to WCAG — it is WCAG's Robust principle carried to its next user agent, which is why WCAG 2.2 AA sits inside it as a prerequisite criterion (DECISIONS.md D-006).
 
@@ -157,7 +193,7 @@ Recorded because form-heavy, rules-driven, high-stakes services are where the st
 
 1. **Primary-source reads:** WebMCP Draft CG Report text; Lighthouse agentic audit documentation; MCP spec (Arazzo reference check); NIST CAISI/NCCoE originals; OECD DGO 2026; DXP 2026 update detail.
 2. **Legal pass (OD-04):** DDA application to authorised agents; delegation law; myGov nominee/authorised-representative architecture; privacy (APP) analysis of scoped tool calls vs page scraping.
-3. **Evidence pass:** independent measurements of agent performance vs semantic quality (WebArena/Mind2Web-class literature); disability-community research on AI assistant use — and primary co-design to generate what literature lacks.
+3. **Evidence pass:** independent measurements of agent performance vs semantic quality (WebArena/Mind2Web-class literature); disability-community research on AI assistant use — and primary co-design to generate what literature lacks. **Government-specific accessibility prevalence** for the baseline's commission patterns (§2.1 limitation 1): a measured sample of Australian government transactional forms, not home pages.
 4. **Comparator pass:** §6 above.
 5. **Benchmark methodology:** task-suite design, agent matrix, statistical protocol, failure taxonomy (feeds /04-assurance).
 
@@ -223,3 +259,11 @@ All sources accessed 9 July 2026.
 | S-52 | design-system.agriculture.gov.au — About AgDS; Intopia Statement of Conformance 2024 (PDF, WCAG 2.1 AA); thinkmill.com.au — AgDS case study | VERIFIED (DAFF primary); Thinkmill material VENDOR CLAIM |
 | S-53 | ripple.sdp.vic.gov.au; vic.gov.au/ripple-design-system; github.com/dpc-sdp/ripple | VERIFIED |
 | S-54 | storybook.js.org — accessibility-testing documentation (@storybook/addon-a11y; test-runner CI failure modes) | VERIFIED |
+| S-55 | webaim.org/projects/million — The WebAIM Million, 2026 report (Feb 2026; 1,000,000 home pages; 95.9% with detected WCAG 2 failures; 51% missing form input labels; 33.1% of inputs unlabelled; 83.9% low contrast; 56.1 errors/page) | VERIFIED (primary, measured) |
+| S-56 | w3.org/TR/turingtest — W3C, *Inaccessibility of CAPTCHA: Alternatives to Visual Turing Tests on the Web*, Group Draft Note 16 Dec 2021 ("a denial of service to these users") | VERIFIED (W3C) |
+| S-57 | w3.org/WAI/WCAG2/supplemental/patterns/o4p09-data-loss — W3C WAI cognitive-accessibility design pattern, *Avoid Data Loss and "Timeouts"* | VERIFIED (W3C) |
+| S-58 | gds.blog.gov.uk (16 Jul 2018) — *Why GOV.UK content should be published in HTML and not PDF*; gov.uk/guidance/publishing-accessible-documents | VERIFIED (UK government primary) |
+| S-59 | stylemanual.gov.au — Australian Government Style Manual, *PDF (Portable Document Format)* and *Make content accessible* | VERIFIED (Australian government primary) |
+| S-60 | w3.org/WAI/WCAG22/Techniques/failures/F73 and Understanding SC 1.4.1 (Use of Color) | VERIFIED (W3C normative technique); prevalence not separately measured |
+| S-61 | robodebt.royalcommission.gov.au/publications/report — Royal Commission into the Robodebt Scheme, recommendation 17.1 (publish that ADM is used, how it works, and make business rules and algorithms available for independent expert scrutiny); pmc.gov.au — Government Response, Nov 2023 | VERIFIED (Royal Commission primary) |
+| S-62 | webaim.org/techniques/formvalidation — *Usable and Accessible Form Validation and Error Recovery* (errors must be associated with their controls; mechanism to reach the field in error) | VERIFIED (authoritative practitioner guidance) |
