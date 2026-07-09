@@ -174,6 +174,10 @@ export async function runOne(build: 'baseline' | 'conformant', agent: AgentAdapt
       delegationId: live.delegationId,
       principalId: PRINCIPAL,
       confirmations,
+      // T7 (§4): the session dies mid-journey. Success is correct completion
+      // with no duplicate effect — on the conformant build the principal's work
+      // survives (3.4.2); on the baseline it is discarded (B-10).
+      ...(task.taskClass === 'T7' ? { interruptAfterRequests: 4 } : {}),
     });
     const { claims: effects, log } = await fixtureState(live.baseUrl);
     const submitted = effects.length > 0; // fresh store per run: every effect belongs to this run

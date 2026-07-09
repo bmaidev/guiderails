@@ -54,6 +54,13 @@ export interface ProbeContext {
   principalId?: string;
   /** 5.3.2: confirmation tokens the principal obtained out-of-band, by action. */
   confirmations?: Record<string, string>;
+  /**
+   * T7: kill the agent's session after this many successful requests. A real
+   * interruption arrives without narration — the agent simply finds its work
+   * gone — so nothing is said to it. Whether it notices, and whether it can
+   * recover without creating a duplicate effect, is the measurement.
+   */
+  interruptAfterRequests?: number;
 }
 
 export interface AgentAdapter {

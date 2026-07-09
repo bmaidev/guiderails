@@ -69,6 +69,7 @@ export const DECLARED_DIVERGENCES: Divergence[] = [
   { id: 'CF-attribution', kind: 'conformance', description: 'Agent-originated submissions flagged in service records (5.2.1).' },
   { id: 'CF-provenance', kind: 'conformance', description: 'Third-party content fenced with a provenance marker (5.6.3).' },
   { id: 'CF-period', kind: 'conformance', description: 'J2 reporting-period surface with explicit timezone semantics (2.6.2).' },
+  { id: 'CF-resume', kind: 'conformance', description: 'Resume of an interrupted journey: work is checkpointed against the principal, not the session, and adopted by a new session under the same delegation for a declared period (3.4.2). The baseline discards the journey (B-10).' },
 
   // 3. Derived: forced by a catalogued pattern, not chosen.
   {

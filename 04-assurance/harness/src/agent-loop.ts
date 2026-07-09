@@ -143,6 +143,7 @@ export interface AgentOptions {
 async function executeHttp(
   ctx: ProbeContext,
   agentId: string,
+  sessionId: string,
   input: Record<string, unknown>,
   t: Transcript,
 ): Promise<string> {
@@ -154,7 +155,7 @@ async function executeHttp(
   }
   const method = input.method === 'POST' ? 'POST' : 'GET';
   const headers: Record<string, string> = {
-    cookie: `sid=${ctx.sessionId}`,
+    cookie: `sid=${sessionId}`,
     'x-agent-id': agentId,
     'x-delegation-id': ctx.delegationId ?? '',
   };
@@ -222,6 +223,12 @@ export function agentFor(driver: ModelDriver, opts: AgentOptions = {}): AgentAda
       let nudges = 0;
       let input: TurnInput = { kind: 'start' };
 
+      // T7: the session is killed mid-journey. The agent is told nothing — a real
+      // interruption does not announce itself. From here its cookie is dead.
+      let sessionId = ctx.sessionId;
+      let requestsMade = 0;
+      let interrupted = false;
+
       for (let i = 0; i < maxIterations && !finish; i++) {
         let turn: ModelTurn;
         try {
@@ -258,7 +265,13 @@ export function agentFor(driver: ModelDriver, opts: AgentOptions = {}): AgentAda
             continue;
           }
           try {
-            results.push({ id: call.id, content: await executeHttp(ctx, id, call.input, t) });
+            results.push({ id: call.id, content: await executeHttp(ctx, id, sessionId, call.input, t) });
+            requestsMade += 1;
+            if (!interrupted && ctx.interruptAfterRequests !== undefined && requestsMade >= ctx.interruptAfterRequests) {
+              interrupted = true;
+              sessionId = `${ctx.sessionId}-after-interruption`;
+              t.notes.push(`[harness] session killed after ${requestsMade} requests (T7)`);
+            }
           } catch (e) {
             results.push({ id: call.id, content: `Error: ${String(e)}`, isError: true });
           }

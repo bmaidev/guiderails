@@ -27,7 +27,7 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { runOne } from './runner.ts';
-import { llmAgent, DEFAULT_MODELS, type Vendor } from './llm-agent.ts';
+import { llmAgent, DEFAULT_MODELS, VENDORS, type Vendor } from './llm-agent.ts';
 import { TASKS } from './tasks.ts';
 import type { RunResult } from './metrics.ts';
 
@@ -42,11 +42,11 @@ function flag(name: string, fallback: string): string {
 const positionals = args.filter((a, i) => !a.startsWith('--') && args[i - 1]?.startsWith('--') !== true);
 const positionalBuild = positionals.find((a) => /^(conformant|baseline|both)$/.test(a));
 const positionalTasks = positionals.find((a) => /^T\d/.test(a));
-const positionalModel = positionals.find((a) => /^(claude|gpt|o\d)/.test(a));
+const positionalModel = positionals.find((a) => /^(claude|gpt|o\d|gemini)/.test(a));
 
 const vendor = (flag('vendor', 'anthropic')) as Vendor;
-if (vendor !== 'anthropic' && vendor !== 'openai') {
-  console.error(`Unknown vendor "${vendor}". Use anthropic or openai.`);
+if (!VENDORS.includes(vendor)) {
+  console.error(`Unknown vendor "${vendor}". Use one of: ${VENDORS.join(', ')}.`);
   process.exit(1);
 }
 const model = positionalModel ?? flag('model', DEFAULT_MODELS[vendor]);
@@ -63,8 +63,8 @@ if (tasks.length === 0) {
 console.log('EXPLORATORY REAL-AGENT RUN — not a benchmark round (D-008).');
 console.log('No preregistration, no frozen briefs, n=1, single vendor. Never publish or cite.\n');
 console.log(`vendor=${vendor} model=${model} builds=${builds.join(',')} tasks=${tasks.map((t) => t.id).join(',')}`);
-if (vendor === 'openai') {
-  console.log('NOTE: the OpenAI driver has not yet completed a live smoke run. Record any wire-shape correction it needs.');
+if (vendor === 'openai' || vendor === 'google') {
+  console.log(`NOTE: the ${vendor} driver has not yet completed a live smoke run. Record any wire-shape correction it needs.`);
 }
 console.log('');
 

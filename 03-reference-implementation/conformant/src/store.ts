@@ -85,6 +85,42 @@ export class Store {
     return d;
   }
 
+  /**
+   * 3.4.2: an interrupted journey is resumable "without loss of entered data for
+   * a declared period". A draft keyed on the session cookie is not resumable —
+   * it merely survives as long as the cookie does, which is precisely what an
+   * interruption destroys. Resume points are therefore keyed on the PRINCIPAL,
+   * so a new session under the same delegation can adopt the work.
+   */
+  private readonly resumePoints = new Map<string, DraftState>();
+
+  private resumeKey(principalId: string, journeyId: string): string {
+    return `${principalId}|${journeyId}`;
+  }
+
+  saveResumePoint(principalId: string, journeyId: string, draft: DraftState): void {
+    this.resumePoints.set(this.resumeKey(principalId, journeyId), {
+      values: { ...draft.values },
+      completedSteps: [...draft.completedSteps],
+      consequentialEvents: [...draft.consequentialEvents],
+    });
+  }
+
+  resumePoint(principalId: string, journeyId: string): DraftState | undefined {
+    return this.resumePoints.get(this.resumeKey(principalId, journeyId));
+  }
+
+  /** Adopt the principal's resume point into this session's draft. */
+  adoptResumePoint(sessionId: string, principalId: string, journeyId: string): DraftState | undefined {
+    const saved = this.resumePoint(principalId, journeyId);
+    if (!saved) return undefined;
+    const draft = this.draft(sessionId, journeyId);
+    Object.assign(draft.values, saved.values);
+    draft.completedSteps = [...saved.completedSteps];
+    draft.consequentialEvents = [...saved.consequentialEvents];
+    return draft;
+  }
+
   addDelegation(d: Delegation): void {
     this.delegations.set(d.id, d);
   }
