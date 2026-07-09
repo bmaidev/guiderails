@@ -110,6 +110,15 @@ Research on agent-targeting attacks documents prompt injection via page content 
 
 - OECD **Digital Government Outlook 2026** ranked Australia **2nd** among surveyed countries; the report's theme is moving from foundations to system-level execution [S-46] **[VERIFIED — DTA account of OECD report; read OECD primary in pass 2]**.
 
+### 3.5 Design-system landscape (implementation channel)
+
+- There is **no mandated whole-of-government federal design system**. The DTA's Australian Government Design System (AuDS, released 2018) was decommissioned in **September 2021**; the open-source community forked it as **GOLD** (Government Open Language for Design), now community-maintained [S-51] **[VERIFIED — GOLD site and official community decommission notice; press reporting SECONDARY]**.
+- **Agriculture Design System (AgDS)**: DAFF's open-source React design system, audited by Intopia with a published **statement of conformance at WCAG 2.1 AA** (component, template and usability phases, including screen-reader, magnification and neurodivergent participants) [S-52] **[VERIFIED — DAFF primary for the audit]**. Thinkmill's co-development role and Intopia's "exemplary implementation" characterisation appear in Thinkmill's own materials **[VENDOR CLAIM]**.
+- **Ripple**: Victoria's design system, maintained by the Single Digital Presence team (Department of Government Services); open source, Apache-2.0; Storybook component workshop; used by 50+ Victorian government sites [S-53] **[VERIFIED — vic.gov.au and dpc-sdp GitHub]**.
+- **Storybook's accessibility addon** (`@storybook/addon-a11y`) runs axe-core against every story with a violations panel, and its Playwright-based test runner fails CI on violations [S-54] **[VERIFIED — Storybook documentation]**. This is the architectural precedent for a Guiderails addon: per-story agent-legibility checks that fail the build exactly as a11y regressions do.
+
+**Relevance:** implementation tooling cannot assume a single design system. A design-system-agnostic layer — headless behaviour package, Storybook addon, per-system integrations — turns each existing system (AgDS, GOLD, Ripple) into a distribution channel for the standard rather than betting on one (DECISIONS.md D-013).
+
 ---
 
 ## 4. Rules as Code — state of play
@@ -210,3 +219,7 @@ All sources accessed 9 July 2026.
 | S-48 | apiscout.dev — Arazzo guide (MCP-references-Arazzo claim) | TO VERIFY |
 | S-49 | arXiv 2510.05159 — backdoors/prompt-injection in agent supply chain | VERIFIED (preprint) |
 | S-50 | accessibilitychecker.org — AI agents for web accessibility | SECONDARY |
+| S-51 | gold.designsystemau.org; community.digital.gov.au — AuDS decommission notice (Sept 2021) and GOLD fork; itnews.com.au / innovationaus.com reporting | VERIFIED (decommission, fork); reporting SECONDARY |
+| S-52 | design-system.agriculture.gov.au — About AgDS; Intopia Statement of Conformance 2024 (PDF, WCAG 2.1 AA); thinkmill.com.au — AgDS case study | VERIFIED (DAFF primary); Thinkmill material VENDOR CLAIM |
+| S-53 | ripple.sdp.vic.gov.au; vic.gov.au/ripple-design-system; github.com/dpc-sdp/ripple | VERIFIED |
+| S-54 | storybook.js.org — accessibility-testing documentation (@storybook/addon-a11y; test-runner CI failure modes) | VERIFIED |
