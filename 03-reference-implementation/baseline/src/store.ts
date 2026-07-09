@@ -24,6 +24,8 @@ export interface BaselineDraft {
 }
 
 export interface BaselineClaim {
+  journeyId: string;
+  actionId: string;
   reference: string;
   values: Record<string, unknown>;
   at: string;
@@ -45,7 +47,7 @@ export class BaselineStore {
   readonly claims: BaselineClaim[] = [];
   readonly log: BaselineLogEvent[] = [];
   private readonly sessions = new Map<string, BaselineDraft>();
-  private claimCounter = 0;
+  private readonly counters = new Map<string, number>();
 
   readonly now: () => number;
 
@@ -74,9 +76,10 @@ export class BaselineStore {
     return { draft, expired };
   }
 
-  nextClaimReference(): string {
-    this.claimCounter += 1;
-    return `SSP-${String(this.claimCounter).padStart(8, '0')}`;
+  nextReference(prefix: string): string {
+    const n = (this.counters.get(prefix) ?? 0) + 1;
+    this.counters.set(prefix, n);
+    return `${prefix}${String(n).padStart(8, '0')}`;
   }
 
   record(event: BaselineLogEvent): void {

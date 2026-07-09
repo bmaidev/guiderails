@@ -30,7 +30,9 @@ export interface DraftState {
   consequentialEvents: ConsequentialEvent[];
 }
 
-export interface ClaimRecord {
+export interface EffectRecord {
+  journeyId: string;
+  actionId: string;
   reference: string;
   principalId: string;
   values: Record<string, unknown>;
@@ -47,22 +49,27 @@ export interface LogEvent {
 
 export class Store {
   readonly guard = new DuplicateGuard();
-  private readonly sessions = new Map<string, DraftState>();
+  private readonly sessions = new Map<string, Map<string, DraftState>>();
   private readonly delegations = new Map<string, Delegation>();
-  readonly claims: ClaimRecord[] = [];
+  readonly effects: EffectRecord[] = [];
   readonly log: LogEvent[] = [];
-  private claimCounter = 0;
+  private readonly counters = new Map<string, number>();
 
   newSessionId(): string {
     return randomUUID();
   }
 
   /** 3.4.2: drafts survive interruption for the declared period (fixture: process lifetime). */
-  draft(sessionId: string): DraftState {
-    let d = this.sessions.get(sessionId);
+  draft(sessionId: string, journeyId: string): DraftState {
+    let journeys = this.sessions.get(sessionId);
+    if (!journeys) {
+      journeys = new Map();
+      this.sessions.set(sessionId, journeys);
+    }
+    let d = journeys.get(journeyId);
     if (!d) {
       d = { values: {}, completedSteps: [], consequentialEvents: [] };
-      this.sessions.set(sessionId, d);
+      journeys.set(journeyId, d);
     }
     return d;
   }
@@ -75,9 +82,15 @@ export class Store {
     return id ? this.delegations.get(id) : undefined;
   }
 
-  nextClaimReference(): string {
-    this.claimCounter += 1;
-    return `SSP-${String(this.claimCounter).padStart(8, '0')}`;
+  nextReference(prefix: string): string {
+    const n = (this.counters.get(prefix) ?? 0) + 1;
+    this.counters.set(prefix, n);
+    return `${prefix}${String(n).padStart(8, '0')}`;
+  }
+
+  /** J1 claim effects (compatibility view over the generic effect list). */
+  get claims(): EffectRecord[] {
+    return this.effects.filter((e) => e.actionId === 'CA-1');
   }
 
   record(event: LogEvent): void {

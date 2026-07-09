@@ -16,15 +16,9 @@
 
 /**
  * Conformant fixture build — HTTP server. FICTIONAL service (D-009);
- * localhost only; no external network calls.
- *
- * Criteria wired in this increment: 1.1.1/1.1.2/1.2.1/1.3.1 (service
- * description + discovery), 2.2.x (semantics/errors), 2.4.x (state
- * surfaces), 2.6.1 (declared time limit), 3.1.1 (declared tools for J1),
- * 3.4.1/3.4.2/3.4.3 (duplicate protection, resumability, safe steps),
- * 4.1.1/4.2.1/4.4.x/4.5.x (rules endpoint + changelog),
- * 5.1.x/5.2.1/5.3.1/5.5.2-adjacent (delegation, attribution,
- * confirmation checkpoint, notification obligation recorded).
+ * localhost only; no external network calls. Journeys J1–J3 route
+ * through the registry in journeys.ts; both interaction paths project
+ * the same FieldSpecs (anti-divergence, 5.6.2 posture).
  */
 
 import http from 'node:http';
@@ -35,7 +29,8 @@ import {
   safeSteps,
   authoriseConsequentialAction,
   type ConfirmationEvent,
-  type FieldError,
+  type ConsequentialActionSpec,
+  type StepSpec,
 } from '../../packages/agent-surface/src/index.ts';
 import {
   determine,
@@ -43,17 +38,14 @@ import {
   INSTRUMENT_ID,
   RULES_VERSION,
   INSTRUMENT_COMMENCEMENT,
-  ageInYears,
 } from '../../packages/rules-sspd-2026/src/determination.ts';
-import { J1_SPEC, J1_FIELDS, CA_REGISTER } from './j1.ts';
+import { JOURNEYS, CA_REGISTER, REFERENCE_PREFIX, duplicateKey, PERIOD_SURFACE, type JourneyDef } from './journeys.ts';
 import { Store } from './store.ts';
 import { page, form, esc } from './html.ts';
 
-export const SURFACE_VERSION = '0.1.0';
+export const SURFACE_VERSION = '0.2.0';
 export const SURFACE_LAST_MODIFIED = '2026-07-09';
 export const SESSION_TIME_LIMIT_MINUTES = 60; // 2.6.1: declared before the journey begins
-
-const STEP_ORDER = J1_SPEC.steps.map((s) => s.id);
 
 function json(res: http.ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -63,6 +55,21 @@ function json(res: http.ServerResponse, status: number, body: unknown): void {
 function html(res: http.ServerResponse, status: number, body: string, headers: Record<string, string> = {}): void {
   res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', ...headers });
   res.end(body);
+}
+
+function journeyDescription(origin: string, id: string, j: JourneyDef): Record<string, unknown> {
+  const entryStep = j.spec.steps[0].id;
+  return {
+    id,
+    title: j.spec.title,
+    essential: true,
+    entryPoint: `${origin}/journeys/${id}/steps/${entryStep}`,
+    consequentialActions: CA_REGISTER.filter((a) => a.journeyId === id),
+    safeSteps: safeSteps(j.spec), // 3.4.3
+    tools: `${origin}/api/journeys/${id}/schema`, // 1.2.1
+    state: `${origin}/api/journeys/${id}/state`,
+    ...(id === 'J2' ? { reportingPeriod: `${origin}/api/journeys/J2/period` } : {}), // 2.6.2
+  };
 }
 
 function serviceDescription(origin: string): Record<string, unknown> {
@@ -77,22 +84,8 @@ function serviceDescription(origin: string): Record<string, unknown> {
     },
     surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED }, // 1.3.1
     sessionTimeLimit: { minutes: SESSION_TIME_LIMIT_MINUTES, dataLossOnExpiry: false, recovery: 'Drafts are resumable for the declared period (3.4.2).' }, // 2.6.1
-    // 1.1.2: essential journeys with entry points, consequential-actions register, essentiality test
     essentialityTest: { reference: `${origin}/api/essentiality-test`, summary: 'A journey is essential if it lodges, varies or reports on a claim for the payment.' },
-    journeys: [
-      {
-        id: 'J1',
-        title: J1_SPEC.title,
-        essential: true,
-        entryPoint: `${origin}/journeys/J1/steps/identity`,
-        consequentialActions: CA_REGISTER.filter((a) => a.journeyId === 'J1'),
-        safeSteps: safeSteps(J1_SPEC), // 3.4.3
-        tools: `${origin}/api/journeys/J1/schema`, // 1.2.1: discoverable without navigation/auth/side effects
-        state: `${origin}/api/journeys/J1/state`,
-      },
-      { id: 'J2', title: 'Fortnightly activity report', essential: true, status: 'not yet implemented in this increment' },
-      { id: 'J3', title: 'Update details', essential: true, status: 'not yet implemented in this increment' },
-    ],
+    journeys: Object.entries(JOURNEYS).map(([id, j]) => journeyDescription(origin, id, j)), // 1.1.2
     consequentialActionsRegister: CA_REGISTER, // 5.3.1: designation is a machine surface
     rules: {
       determination: `${origin}/api/rules/ssp/determination`,
@@ -108,10 +101,6 @@ async function readBody(req: http.IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-function parseFormBody(body: string): Record<string, unknown> {
-  return Object.fromEntries(new URLSearchParams(body));
-}
-
 function getSession(req: http.IncomingMessage, res: http.ServerResponse, store: Store): string {
   const cookie = req.headers.cookie ?? '';
   const match = /(?:^|;\s*)sid=([A-Za-z0-9-]+)/.exec(cookie);
@@ -122,7 +111,7 @@ function getSession(req: http.IncomingMessage, res: http.ServerResponse, store: 
 }
 
 /** Coerce urlencoded strings to the typed values tool calls submit directly. */
-function coerce(fields: typeof J1_FIELDS[string], values: Record<string, unknown>): Record<string, unknown> {
+function coerce(fields: JourneyDef['fields'][string], values: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...values };
   for (const f of fields) {
     const v = out[f.name];
@@ -137,7 +126,24 @@ function coerce(fields: typeof J1_FIELDS[string], values: Record<string, unknown
   return out;
 }
 
-interface SubmitAuthInput {
+/** Steps that must be complete before `step`, transitively, in spec order. */
+function unmetPrerequisites(journey: JourneyDef, step: StepSpec, completed: string[]): string[] {
+  const done = new Set(completed);
+  const needed = new Set<string>();
+  const walk = (s: StepSpec) => {
+    for (const req of s.requires ?? []) {
+      if (!needed.has(req)) {
+        needed.add(req);
+        const reqStep = journey.spec.steps.find((x) => x.id === req);
+        if (reqStep) walk(reqStep);
+      }
+    }
+  };
+  walk(step);
+  return journey.spec.steps.filter((s) => needed.has(s.id) && !done.has(s.id)).map((s) => s.id);
+}
+
+interface AuthInput {
   agentId?: string;
   delegationId?: string;
   confirmation?: ConfirmationEvent;
@@ -160,13 +166,13 @@ export function createFixtureServer(store: Store): http.Server {
         return json(res, 200, {
           surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED },
           test: 'A journey is essential if it lodges, varies or reports on a claim for the payment.',
-          classifications: [{ journey: 'J1', essential: true }, { journey: 'J2', essential: true }, { journey: 'J3', essential: true }],
+          classifications: Object.keys(JOURNEYS).map((journey) => ({ journey, essential: true })),
         });
       }
 
       // ---- Harness instrumentation (not a service surface; methodology §6 log access) ----
       if (req.method === 'GET' && path === '/api/_fixture/claims') {
-        return json(res, 200, store.claims);
+        return json(res, 200, store.effects);
       }
       if (req.method === 'GET' && path === '/api/_fixture/log') {
         return json(res, 200, store.log);
@@ -194,100 +200,115 @@ export function createFixtureServer(store: Store): http.Server {
         }
       }
 
-      // ---- J1 machine surfaces ----
-      if (req.method === 'GET' && path === '/api/journeys/J1/schema') {
+      // ---- Journey machine surfaces ----
+      if (req.method === 'GET' && path === '/api/journeys/J2/period') {
+        return json(res, 200, { surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED }, ...PERIOD_SURFACE });
+      }
+
+      const schemaMatch = /^\/api\/journeys\/(J[123])\/schema$/.exec(path);
+      if (req.method === 'GET' && schemaMatch) {
+        const jid = schemaMatch[1];
+        const j = JOURNEYS[jid];
         // 3.1.1: published input/output schemas for every step, no auth, no side effects
         return json(res, 200, {
-          journey: J1_SPEC.id,
+          journey: jid,
           surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED },
-          steps: J1_SPEC.steps.map((s) => ({
+          steps: j.spec.steps.map((s) => ({
             id: s.id,
             title: s.title,
             kind: s.kind,
             actionId: s.actionId,
             confirmationDesignated: s.actionId ? CA_REGISTER.find((a) => a.id === s.actionId)?.confirmationDesignated : undefined,
-            endpoint: `${origin}/api/journeys/J1/steps/${s.id}`,
-            inputSchema: formJsonSchema(`j1-${s.id}`, s.title, J1_FIELDS[s.id]),
+            endpoint: `${origin}/api/journeys/${jid}/steps/${s.id}`,
+            inputSchema: formJsonSchema(`${jid.toLowerCase()}-${s.id}`, s.title, j.fields[s.id]),
           })),
         });
       }
-      if (req.method === 'GET' && path === '/api/journeys/J1/state') {
+
+      const stateMatch = /^\/api\/journeys\/(J[123])\/state$/.exec(path);
+      if (req.method === 'GET' && stateMatch) {
+        const jid = stateMatch[1];
         const sid = getSession(req, res, store);
-        const draft = store.draft(sid);
-        return json(res, 200, journeyState(J1_SPEC, draft)); // 2.4.1 / 2.4.2
+        return json(res, 200, journeyState(JOURNEYS[jid].spec, store.draft(sid, jid))); // 2.4.1 / 2.4.2
       }
 
-      // ---- J1 tool calls (agent path) ----
-      const toolMatch = /^\/api\/journeys\/J1\/steps\/([a-z]+)$/.exec(path);
+      // ---- Tool calls (agent path) ----
+      const toolMatch = /^\/api\/journeys\/(J[123])\/steps\/([a-z]+)$/.exec(path);
       if (req.method === 'POST' && toolMatch) {
-        const stepId = toolMatch[1];
-        const step = J1_SPEC.steps.find((s) => s.id === stepId);
-        if (!step) return json(res, 404, { error: { code: 'UNKNOWN_STEP', message: `No step "${stepId}" in J1.` } });
+        const [, jid, stepId] = toolMatch;
+        const journey = JOURNEYS[jid];
+        const step = journey.spec.steps.find((s) => s.id === stepId);
+        if (!step) return json(res, 404, { error: { code: 'UNKNOWN_STEP', message: `No step "${stepId}" in ${jid}.` } });
         const sid = getSession(req, res, store);
         const body = JSON.parse((await readBody(req)) || '{}');
         const values = body.values ?? {};
-        store.record({ at: now(), sessionId: sid, type: 'tool-call', detail: { step: stepId, values } });
+        store.record({ at: now(), sessionId: sid, type: 'tool-call', detail: { journey: jid, step: stepId, values } });
 
-        const errors = validateValues(J1_FIELDS[stepId], values);
+        const errors = validateValues(journey.fields[stepId], values);
         if (errors.length > 0) {
           return json(res, 422, { errors }); // 2.2.2: structured, per-control
         }
-        const draft = store.draft(sid);
+        const draft = store.draft(sid, jid);
         Object.assign(draft.values, values);
-        store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { step: stepId, values } });
+        store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { journey: jid, step: stepId, values } });
 
         if (step.kind === 'safe') {
           if (!draft.completedSteps.includes(stepId)) draft.completedSteps.push(stepId);
-          return json(res, 200, { step: stepId, safeStep: true, state: journeyState(J1_SPEC, draft) });
+          return json(res, 200, { step: stepId, safeStep: true, state: journeyState(journey.spec, draft) });
         }
 
-        // Consequential: CA-1, confirmation-designated (5.3.1)
-        return submitClaim(res, store, sid, {
+        return executeConsequential(res, store, sid, jid, step, values, {
           agentId: (req.headers['x-agent-id'] as string) ?? undefined,
           delegationId: (req.headers['x-delegation-id'] as string) ?? undefined,
           confirmation: body.confirmation,
         }, now());
       }
 
-      // ---- J1 HTML journey (human path) ----
-      const htmlMatch = /^\/journeys\/J1\/steps\/([a-z]+)$/.exec(path);
+      // ---- HTML journeys (human path) ----
+      const htmlMatch = /^\/journeys\/(J[123])\/steps\/([a-z]+)$/.exec(path);
       if (htmlMatch) {
-        const stepId = htmlMatch[1];
-        const step = J1_SPEC.steps.find((s) => s.id === stepId);
+        const [, jid, stepId] = htmlMatch;
+        const journey = JOURNEYS[jid];
+        const step = journey.spec.steps.find((s) => s.id === stepId);
         if (!step) return html(res, 404, page('Page not found', '<p>This step does not exist.</p>'));
         const sid = getSession(req, res, store);
-        const draft = store.draft(sid);
-        const fields = J1_FIELDS[stepId];
-        const idx = STEP_ORDER.indexOf(stepId);
+        const draft = store.draft(sid, jid);
+        const fields = journey.fields[stepId];
+        const stepOrder = journey.spec.steps.map((s) => s.id);
+        const idx = stepOrder.indexOf(stepId);
+        const submitLabel = step.kind === 'consequential' ? (jid === 'J1' ? 'Submit application' : 'Submit') : 'Save and continue';
 
         if (req.method === 'GET') {
-          const stepInfo = `<p>Step ${idx + 1} of ${STEP_ORDER.length}. This step ${step.kind === 'safe' ? 'saves your progress and has no legal effect' : 'submits your application — a consequential action'}.</p>
+          const stepInfo = `<p>Step ${idx + 1} of ${stepOrder.length}. This step ${step.kind === 'safe' ? 'saves your progress and has no legal effect' : 'is a consequential action'}.</p>
 <p>Session time limit: ${SESSION_TIME_LIMIT_MINUTES} minutes; your draft is kept and you can resume without losing entered data.</p>`;
-          const reviewHtml = stepId === 'review'
-            ? `<dl>${J1_SPEC.steps.flatMap((s) => J1_FIELDS[s.id]).map((f) => `<dt>${esc(f.label)}</dt><dd>${esc(draft.values[f.name] ?? 'Not provided')}</dd>`).join('')}</dl>`
-            : '';
-          return html(res, 200, page(step.title, `${stepInfo}${reviewHtml}${form(path, fields, draft.values, [], stepId === 'submit' ? 'Submit application' : 'Save and continue')}`));
+          let extraHtml = '';
+          if (jid === 'J1' && stepId === 'review') {
+            extraHtml = `<dl>${journey.spec.steps.flatMap((s) => journey.fields[s.id]).map((f) => `<dt>${esc(f.label)}</dt><dd>${esc(draft.values[f.name] ?? 'Not provided')}</dd>`).join('')}</dl>`;
+          }
+          if (jid === 'J2' && stepId === 'period') {
+            extraHtml = `<p>Reporting period: ${esc(PERIOD_SURFACE.period.start)} to ${esc(PERIOD_SURFACE.period.end)}.</p>
+<p>Report due by <strong>${esc(PERIOD_SURFACE.report.dueDate)}</strong> (${esc(PERIOD_SURFACE.report.timezone)}). ${esc(PERIOD_SURFACE.consequence)}</p>`;
+          }
+          return html(res, 200, page(step.title, `${stepInfo}${extraHtml}${form(path, fields, draft.values, [], submitLabel)}`));
         }
 
         if (req.method === 'POST') {
-          const raw = parseFormBody(await readBody(req));
+          const raw = Object.fromEntries(new URLSearchParams(await readBody(req)));
           const values = coerce(fields, raw);
-          store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { step: stepId, values } });
+          store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { journey: jid, step: stepId, values } });
           const errors = validateValues(fields, values);
           if (errors.length > 0) {
-            return html(res, 422, page(step.title, form(path, fields, values, errors, stepId === 'submit' ? 'Submit application' : 'Save and continue')));
+            return html(res, 422, page(step.title, form(path, fields, values, errors, submitLabel)));
           }
           Object.assign(draft.values, values);
           if (step.kind === 'safe') {
             if (!draft.completedSteps.includes(stepId)) draft.completedSteps.push(stepId);
-            const next = STEP_ORDER[idx + 1];
-            res.writeHead(303, { location: `/journeys/J1/steps/${next}` });
+            const next = stepOrder[idx + 1];
+            res.writeHead(303, { location: next ? `/journeys/${jid}/steps/${next}` : `/journeys/${jid}/steps/${stepOrder[0]}` });
             return res.end();
           }
-          // Human path: the session principal's own declaration IS the confirmation event.
-          return submitClaim(res, store, sid, {
-            humanPrincipalId: `principal-${sid}`,
-          }, now(), true);
+          // Human path: the session principal's own posted declaration IS the confirmation event.
+          return executeConsequential(res, store, sid, jid, step, values, { humanPrincipalId: `principal-${sid}` }, now(), true);
         }
       }
 
@@ -304,22 +325,30 @@ export function createFixtureServer(store: Store): http.Server {
   });
 }
 
-function submitClaim(
+function executeConsequential(
   res: http.ServerResponse,
   store: Store,
   sid: string,
-  auth: SubmitAuthInput,
+  jid: string,
+  step: StepSpec,
+  values: Record<string, unknown>,
+  auth: AuthInput,
   at: string,
   asHtml = false,
 ): void {
-  const draft = store.draft(sid);
-  const action = CA_REGISTER.find((a) => a.id === 'CA-1')!;
+  const journey = JOURNEYS[jid];
+  const action = CA_REGISTER.find((a) => a.id === step.actionId) as ConsequentialActionSpec;
+  const draft = store.draft(sid, jid);
 
-  // Prerequisites (2.4.1): all safe steps must be complete
-  const missing = STEP_ORDER.filter((s) => s !== 'submit' && !draft.completedSteps.includes(s));
+  // Prerequisites (2.4.1): the step's transitive requirements, in spec order
+  const missing = unmetPrerequisites(journey, step, draft.completedSteps);
   if (missing.length > 0) {
     const body = { error: { code: 'PREREQUISITES_UNSATISFIED', message: `Complete these steps first: ${missing.join(', ')}.`, missing } };
-    if (asHtml) return html(res, 422, page('Cannot submit yet', `<p>${esc(body.error.message)}</p>`));
+    if (asHtml) {
+      res.writeHead(422, { 'content-type': 'text/html; charset=utf-8' });
+      res.end(page('Cannot submit yet', `<p>${esc(body.error.message)}</p>`));
+      return;
+    }
     return json(res, 422, body);
   }
 
@@ -330,7 +359,9 @@ function submitClaim(
     // Principal acting directly; the posted declaration is the confirmation event.
     principalId = auth.humanPrincipalId;
     attribution = { agentOriginated: false };
-    store.record({ at, sessionId: sid, type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'human-declaration' } });
+    if (action.confirmationDesignated) {
+      store.record({ at, sessionId: sid, type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'human-declaration' } });
+    }
   } else {
     const delegation = store.delegation(auth.delegationId);
     const result = authoriseConsequentialAction({
@@ -346,20 +377,22 @@ function submitClaim(
     }
     principalId = result.principalId;
     attribution = result.attribution;
-    store.record({ at, sessionId: sid, type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'delegated-confirmation' } });
+    if (action.confirmationDesignated) {
+      store.record({ at, sessionId: sid, type: 'confirmation', detail: { actionId: action.id, principalId, channel: 'delegated-confirmation' } });
+    }
   }
 
-  // 3.4.1: one open claim per principal; repeats return the original effect
-  const outcome = store.guard.execute(`${principalId}:CA-1`, () => {
-    const reference = store.nextClaimReference();
-    store.claims.push({ reference, principalId, values: { ...draft.values }, at, attribution });
+  // 3.4.1: duplicate protection per the register; repeats return the original effect
+  const outcome = store.guard.execute(duplicateKey(action.id, principalId, values), () => {
+    const reference = store.nextReference(REFERENCE_PREFIX[action.id]);
+    store.effects.push({ journeyId: jid, actionId: action.id, reference, principalId, values: { ...draft.values }, at, attribution });
     store.record({ at, sessionId: sid, type: 'effect', detail: { actionId: action.id, reference, attribution, notificationQueued: true } }); // 5.5.2 obligation recorded
     return { reference, at };
   });
 
   if (!outcome.duplicate) {
-    draft.consequentialEvents.push({ stepId: 'submit', actionId: action.id, at: outcome.record.at, reference: outcome.record.reference });
-    if (!draft.completedSteps.includes('submit')) draft.completedSteps.push('submit');
+    draft.consequentialEvents.push({ stepId: step.id, actionId: action.id, at: outcome.record.at, reference: outcome.record.reference });
+    if (!draft.completedSteps.includes(step.id)) draft.completedSteps.push(step.id);
   }
 
   const body = {
@@ -369,11 +402,13 @@ function submitClaim(
     attribution,
   };
   if (asHtml) {
-    return html(res, outcome.duplicate ? 200 : 201, page(
-      outcome.duplicate ? 'Application already submitted' : 'Application submitted',
-      `<p>${outcome.duplicate ? 'This application was already submitted; no new application has been created.' : 'Your application has been submitted.'}</p>
-<p>Your claim reference is <strong>${esc(outcome.record.reference)}</strong> (submitted ${esc(outcome.record.at)}).</p>`,
+    res.writeHead(outcome.duplicate ? 200 : 201, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(page(
+      outcome.duplicate ? 'Already submitted' : 'Submitted',
+      `<p>${outcome.duplicate ? 'This was already submitted; no new effect has been created.' : 'Your submission has been received.'}</p>
+<p>Your reference is <strong>${esc(outcome.record.reference)}</strong> (submitted ${esc(outcome.record.at)}).</p>`,
     ));
+    return;
   }
   return json(res, outcome.duplicate ? 200 : 201, body);
 }
