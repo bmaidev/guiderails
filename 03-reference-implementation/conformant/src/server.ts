@@ -25,6 +25,7 @@ import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import {
   formJsonSchema,
+  stepRequestSchema,
   validateValues,
   journeyState,
   safeSteps,
@@ -163,6 +164,27 @@ function serviceDescription(origin: string): Record<string, unknown> {
       determination: `${origin}/api/rules/ssp/determination`,
       changelog: `${origin}/api/rules/ssp/changelog`,
       instrument: { id: INSTRUMENT_ID, version: RULES_VERSION, commencement: INSTRUMENT_COMMENCEMENT },
+      // 3.1.1: a declared tool describes its input. An endpoint that accepts one
+      // envelope while its documentation names only the fields inside it is a
+      // schema an agent cannot construct a request from.
+      determinationRequest: {
+        method: 'POST',
+        inputSchema: {
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          $id: 'ssp-determination-request',
+          title: 'Eligibility determination — request body',
+          type: 'object',
+          properties: {
+            circumstances: {
+              type: 'object',
+              description: 'The declared circumstances to determine against. Provide ageYears or dateOfBirth, and the residency, enrolment and income circumstances the instrument requires.',
+            },
+            effectiveDate: { type: 'string', format: 'date', description: 'Determine against the rules in force on this date. Defaults to today.' },
+          },
+          required: ['circumstances'],
+          additionalProperties: false,
+        },
+      },
     },
   };
 }
@@ -191,6 +213,60 @@ async function readBody(req: http.IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
   return Buffer.concat(chunks).toString('utf8');
+}
+
+type ParsedBody = { ok: true; body: Record<string, unknown> } | { ok: false; message: string };
+
+/**
+ * Parse a JSON request body into an object, or explain why not.
+ *
+ * `JSON.parse('null')` is `null`, and `null.values` throws — so a body of
+ * literal `null` used to 500 the fixture while every other malformed body
+ * degraded politely. A service that answers malformed input with a stack trace
+ * has told the agent nothing it can act on (2.2.2).
+ */
+async function readJsonBody(req: http.IncomingMessage): Promise<ParsedBody> {
+  const raw = (await readBody(req)).trim();
+  if (raw === '') return { ok: true, body: {} };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, message: 'The request body is not valid JSON.' };
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { ok: false, message: `The request body must be a JSON object. Received ${Array.isArray(parsed) ? 'an array' : String(parsed === null ? 'null' : typeof parsed)}.` };
+  }
+  return { ok: true, body: parsed as Record<string, unknown> };
+}
+
+function malformed(res: http.ServerResponse, message: string): void {
+  return json(res, 400, { error: { code: 'MALFORMED_BODY', message } });
+}
+
+/**
+ * Which methods a known path accepts. Answering a wrong-method request with 404
+ * tells an agent the resource does not exist; the truth is that it does, and it
+ * wanted POST. Every agent in the smoke runs probed GET on the determination
+ * and confirmation endpoints and was told, in effect, to look elsewhere.
+ */
+export function allowedMethodsFor(path: string): string[] | undefined {
+  const routes: Array<[RegExp, string[]]> = [
+    [/^\/llms\.txt$/, ['GET']],
+    [/^\/\.well-known\/guiderails\.json$/, ['GET']],
+    [/^\/api\/essentiality-test$/, ['GET']],
+    [/^\/api\/confirmations$/, ['POST']],
+    [/^\/api\/rules\/ssp\/determination$/, ['POST']],
+    [/^\/api\/rules\/ssp\/changelog$/, ['GET']],
+    [/^\/api\/journeys\/J[123]\/schema$/, ['GET']],
+    [/^\/api\/journeys\/J[123]\/state$/, ['GET']],
+    [/^\/api\/journeys\/J2\/period$/, ['GET']],
+    [/^\/api\/journeys\/J[123]\/resume$/, ['POST']],
+    [/^\/api\/journeys\/J[123]\/steps\/[a-z-]+$/, ['POST']],
+    [/^\/api\/audit$/, ['GET']],
+    [/^\/api\/notifications$/, ['GET']],
+  ];
+  return routes.find(([pattern]) => pattern.test(path))?.[1];
 }
 
 function getSession(req: http.IncomingMessage, res: http.ServerResponse, store: Store): string {
@@ -359,7 +435,9 @@ export function createFixtureServer(store: Store): http.Server {
         if (!principalId) {
           return json(res, 401, { error: { code: 'PRINCIPAL_AUTHENTICATION_REQUIRED', message: 'Confirmations are issued only to an authenticated principal.' } });
         }
-        const body = JSON.parse((await readBody(req)) || '{}');
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const body = parsed.body;
         const action = CA_REGISTER.find((a) => a.id === body.actionId);
         if (!action) return json(res, 400, { error: { code: 'UNKNOWN_ACTION', message: `No consequential action "${body.actionId}".` } });
         if (!action.confirmationDesignated) {
@@ -387,10 +465,27 @@ export function createFixtureServer(store: Store): http.Server {
         });
       }
       if (req.method === 'POST' && path === '/api/rules/ssp/determination') {
-        const body = JSON.parse((await readBody(req)) || '{}');
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const body = parsed.body as { circumstances?: Record<string, unknown>; effectiveDate?: string };
         store.record({ at: now(), sessionId: 'anonymous', type: 'rules-query', detail: { inputs: body } }); // 4.5.2: no principal attribution
+        // An agent that sends the circumstances flat has supplied everything and
+        // is told it supplied nothing. Name the envelope, not the fields.
+        if (!body.circumstances && Object.keys(body).some((k) => k !== 'effectiveDate')) {
+          return json(res, 400, {
+            error: {
+              code: 'MISSING_CIRCUMSTANCES',
+              message: 'Wrap the circumstances in a "circumstances" object: {"circumstances": {…}}. The keys you sent were read as top-level request fields, not as circumstances.',
+              expected: { circumstances: '{ declared circumstance fields }', effectiveDate: 'optional ISO 8601 date' },
+              received: Object.keys(body),
+            },
+          });
+        }
         try {
-          const determination = determine(body.circumstances ?? {}, { effectiveDate: body.effectiveDate });
+          // determine() validates and throws RulesInputError on anything missing,
+          // which is how an under-specified query becomes a 400 rather than a guess.
+          const circumstances = (body.circumstances ?? {}) as unknown as Parameters<typeof determine>[0];
+          const determination = determine(circumstances, { effectiveDate: body.effectiveDate });
           // 4.5.2 holds: this record carries no principal. 5.4.1 is served by the
           // agent CITING this id when it acts — reliance is attributable, curiosity is not.
           const id = `det_${randomUUID()}`;
@@ -435,7 +530,13 @@ export function createFixtureServer(store: Store): http.Server {
             // 5.3.1 extended: the register tells an agent where it must not act at all.
             agentExecutable: s.actionId ? CA_REGISTER.find((a) => a.id === s.actionId)?.agentExecutable !== false : true,
             endpoint: `${origin}/api/journeys/${jid}/steps/${s.id}`,
-            inputSchema: formJsonSchema(`${jid.toLowerCase()}-${s.id}`, s.title, j.fields[s.id]),
+            method: 'POST',
+            // 3.1.1: the *request body* an agent must construct, not merely the
+            // field names. The confirmation token has a documented place to go.
+            inputSchema: stepRequestSchema(`${jid.toLowerCase()}-${s.id}`, s.title, j.fields[s.id], {
+              actionId: s.actionId,
+              confirmationDesignated: s.actionId ? CA_REGISTER.find((a) => a.id === s.actionId)?.confirmationDesignated : false,
+            }),
           })),
         });
       }
@@ -496,7 +597,23 @@ export function createFixtureServer(store: Store): http.Server {
         const step = journey.spec.steps.find((s) => s.id === stepId);
         if (!step) return json(res, 404, { error: { code: 'UNKNOWN_STEP', message: `No step "${stepId}" in ${jid}.` } });
         const sid = getSession(req, res, store);
-        const body = JSON.parse((await readBody(req)) || '{}');
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const body = parsed.body as { values?: Record<string, unknown>; confirmation?: ConfirmationEvent; determinationId?: string };
+        // The field names arrived, just not where the endpoint reads them. Saying
+        // "fullName is required" to an agent that sent fullName is a lie of
+        // omission, and it is unrecoverable: it never learns about the envelope.
+        const envelopeKeys = ['values', 'confirmation', 'determinationId'];
+        if (!body.values && Object.keys(body).some((k) => !envelopeKeys.includes(k))) {
+          return json(res, 400, {
+            error: {
+              code: 'MISSING_VALUES',
+              message: 'Wrap the field values in a "values" object: {"values": {…}}. See inputSchema at this journey\'s schema endpoint for the full request body.',
+              expected: envelopeKeys,
+              received: Object.keys(body),
+            },
+          });
+        }
         const values = body.values ?? {};
         store.record({ at: now(), sessionId: sid, type: 'tool-call', detail: { journey: jid, step: stepId, values } });
 
@@ -685,6 +802,18 @@ ${THIRD_PARTY_NOTICE.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('\n')}
         return res.end();
       }
 
+      // 2.2.2: a wrong method is not a missing resource. Say which method works.
+      const allowed = allowedMethodsFor(path);
+      if (allowed && req.method && !allowed.includes(req.method)) {
+        res.setHeader('allow', allowed.join(', '));
+        return json(res, 405, {
+          error: {
+            code: 'METHOD_NOT_ALLOWED',
+            message: `${req.method} is not allowed at ${path}. Use ${allowed.join(' or ')}.`,
+            allow: allowed,
+          },
+        });
+      }
       return json(res, 404, { error: { code: 'NOT_FOUND', message: `No resource at ${path}.` } });
     } catch (e) {
       store.record({ at: now(), sessionId: 'server', type: 'rejection', detail: { path, error: String(e) } });

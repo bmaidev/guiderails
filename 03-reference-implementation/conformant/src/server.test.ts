@@ -18,6 +18,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type http from 'node:http';
 import { createFixtureServer } from './server.ts';
+import { SERVICE_DESC_PATH } from './html.ts';
 import { Store } from './store.ts';
 
 let server: http.Server;
@@ -97,8 +98,112 @@ test('3.1.1: step schemas published without auth or side effects', async () => {
   assert.equal(submit.kind, 'consequential');
   assert.equal(submit.confirmationDesignated, true);
   const circumstances = d.steps.find((s: any) => s.id === 'circumstances');
-  assert.equal(circumstances.inputSchema.properties.fortnightlyIncome.type, 'number');
-  assert.ok(circumstances.inputSchema.required.includes('enrolmentStatus'));
+  const values = circumstances.inputSchema.properties.values;
+  assert.equal(values.properties.fortnightlyIncome.type, 'number');
+  assert.ok(values.required.includes('enrolmentStatus'));
+});
+
+test('3.1.1: the published schema describes the request body, not just the fields', async () => {
+  // Two frontier models each burned an iteration budget because the schema
+  // described {declaration} while the endpoint accepted {values: {declaration}},
+  // and the 422 named a field they had supplied. A published input schema an
+  // agent cannot construct a request from does not satisfy 3.1.1.
+  const d = await (await fetch(`${base}/api/journeys/J1/schema`)).json() as any;
+
+  const identity = d.steps.find((s: any) => s.id === 'identity');
+  assert.equal(identity.method, 'POST');
+  assert.deepEqual(identity.inputSchema.required, ['values']);
+  assert.equal(identity.inputSchema.properties.values.type, 'object');
+
+  const submit = d.steps.find((s: any) => s.id === 'submit');
+  // CA-1 is confirmation-designated: the checkpoint must have a documented door.
+  assert.ok(submit.inputSchema.required.includes('confirmation'));
+  assert.ok(submit.inputSchema.properties.confirmation.required.includes('token'));
+  // 5.4.1: an agent cannot cite what it was never told it could send.
+  assert.equal(submit.inputSchema.properties.determinationId.type, 'string');
+});
+
+test('3.1.1: a request constructed only from the published schema is accepted', async () => {
+  // The property the schema *asserts*. Nothing else in the suite checked that an
+  // agent reading only the declared surface could actually complete a step.
+  const schema = await (await fetch(`${base}/api/journeys/J1/schema`)).json() as any;
+  const identity = schema.steps.find((s: any) => s.id === 'identity');
+
+  const supply: Record<string, unknown> = {
+    fullName: 'Rowan Ashe', dateOfBirth: '1999-03-14',
+    email: 'rowan.ashe@example.com', mobile: '0400000001', residentSince: '2018-02-05',
+  };
+  // Build the body from the schema's own shape, not from knowledge of the server.
+  const body = {
+    values: Object.fromEntries(
+      identity.inputSchema.properties.values.required.map((f: string) => [f, supply[f]]),
+    ),
+  };
+
+  const r = await fetch(identity.endpoint, {
+    method: identity.method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  assert.equal(r.status, 200, `a schema-shaped request was rejected: ${await r.text()}`);
+});
+
+test('2.2.2: sending the fields flat is told about the envelope, not about the fields', async () => {
+  const r = await fetch(`${base}/api/journeys/J1/steps/identity`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ fullName: 'Rowan Ashe', dateOfBirth: '1999-03-14' }),
+  });
+  assert.equal(r.status, 400);
+  const body = await r.json() as any;
+  assert.equal(body.error.code, 'MISSING_VALUES');
+  // The old behaviour: 422 "fullName is required" to an agent that sent fullName.
+  assert.ok(!/fullName is required/.test(JSON.stringify(body)));
+});
+
+test('a JSON body of literal null is a 400, not a 500', async () => {
+  // JSON.parse('null') is null, and null.values throws. Every other malformed
+  // body degraded politely; this one returned an unhandled fixture error.
+  for (const raw of ['null', '[]', '"hello"', '{oops']) {
+    const r = await fetch(`${base}/api/journeys/J1/steps/identity`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: raw,
+    });
+    assert.equal(r.status, 400, `body ${raw} should be a 400`);
+    assert.equal(((await r.json()) as any).error.code, 'MALFORMED_BODY');
+  }
+});
+
+test('2.2.2: a wrong method is 405 with Allow, not 404', async () => {
+  // Every agent in the smoke runs probed GET on these first and was told the
+  // resource did not exist. It exists; it wanted POST.
+  for (const path of ['/api/rules/ssp/determination', '/api/confirmations', '/api/journeys/J1/resume']) {
+    const r = await fetch(`${base}${path}`);
+    assert.equal(r.status, 405, `GET ${path}`);
+    assert.equal(r.headers.get('allow'), 'POST');
+    assert.equal(((await r.json()) as any).error.code, 'METHOD_NOT_ALLOWED');
+  }
+  // A path that genuinely does not exist still 404s.
+  assert.equal((await fetch(`${base}/api/nonexistent`)).status, 404);
+});
+
+test('the determination endpoint names its envelope when circumstances arrive flat', async () => {
+  const r = await fetch(`${base}/api/rules/ssp/determination`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ageYears: 20, residencyWeeks: 29 }),
+  });
+  assert.equal(r.status, 400);
+  const body = await r.json() as any;
+  assert.equal(body.error.code, 'MISSING_CIRCUMSTANCES');
+  assert.deepEqual(body.error.received, ['ageYears', 'residencyWeeks']);
+});
+
+test('3.1.1: the determination endpoint publishes its own request schema', async () => {
+  const d = await (await fetch(`${base}${SERVICE_DESC_PATH}`)).json() as any;
+  assert.equal(d.rules.determinationRequest.method, 'POST');
+  assert.deepEqual(d.rules.determinationRequest.inputSchema.required, ['circumstances']);
 });
 
 test('4.1.1/4.2.1/4.5.x: rules endpoint answers V3 with provenance, indicative label, no-obligation statement', async () => {
