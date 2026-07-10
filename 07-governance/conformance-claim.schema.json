@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://guiderails.example/schema/conformance-claim.json",
+  "title": "Guiderails conformance claim",
+  "description": "PROPOSED (DECISIONS.md D-017, open question Q5). Not normative until D-017 reads Decided. Content requirements are fixed by MODEL.md §4; this document adds shape.",
+  "type": "object",
+  "required": [
+    "standard",
+    "standardVersion",
+    "claimedLevel",
+    "service",
+    "journeysInScope",
+    "auditDate",
+    "expires",
+    "accountableOwner",
+    "contest"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "standard": { "const": "Guiderails" },
+    "standardVersion": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "claimedLevel": { "enum": ["A", "AA", "AAA"] },
+    "service": {
+      "type": "object",
+      "required": ["name", "administeringAuthority"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "administeringAuthority": { "type": "string", "minLength": 1 }
+      }
+    },
+    "journeysInScope": {
+      "description": "Claims are made per journey. Per-criterion claims are not recognised (MODEL.md §4).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "essential", "level"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "essential": { "type": "boolean" },
+          "level": { "enum": ["A", "AA", "AAA"] }
+        }
+      }
+    },
+    "auditDate": { "type": "string", "format": "date" },
+    "expires": {
+      "description": "Required. An unexpiring claim is an assertion about a service that has since changed.",
+      "type": "string",
+      "format": "date"
+    },
+    "accountableOwner": {
+      "description": "One named human. Not a team, not an inbox (prime directive 9).",
+      "type": "object",
+      "required": ["name", "role", "organisation"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "organisation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "benchmarkEvidence": {
+      "description": "Required at AA and AAA (MODEL.md §7). Results must reference the preregistration that governed the round.",
+      "type": "object",
+      "required": ["required"],
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean" },
+        "resultsUrl": { "type": "string", "format": "uri" },
+        "preregistration": { "type": "string", "format": "uri" },
+        "roundDate": { "type": "string", "format": "date" }
+      }
+    },
+    "contest": {
+      "description": "Where a person may challenge this claim, or an outcome produced under it (5.4.2).",
+      "type": "string",
+      "format": "uri"
+    },
+    "exclusions": {
+      "description": "Journeys deliberately out of scope. Silence about a journey means it is in scope and conforming.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["journeyId", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "journeyId": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "AA and above require benchmark evidence with a results URL and a preregistration.",
+      "if": { "properties": { "claimedLevel": { "enum": ["AA", "AAA"] } } },
+      "then": {
+        "required": ["benchmarkEvidence"],
+        "properties": {
+          "benchmarkEvidence": {
+            "required": ["required", "resultsUrl", "preregistration", "roundDate"],
+            "properties": { "required": { "const": true } }
+          }
+        }
+      }
+    }
+  ]
+}
