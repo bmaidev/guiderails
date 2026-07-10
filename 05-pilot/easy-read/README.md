@@ -1,6 +1,6 @@
 # Easy Read
 
-**Status: DRAFT — NOT FOR PUBLICATION. 10 July 2026.**
+**Status: DRAFT — NOT FOR PUBLICATION. 10 July 2026.** D-018 is Decided, which suspends gate C3 for this one pair. It does not make drafted text into Easy Read, and it does not authorise publication: see [`../leda/REVIEW-RECORD.md`](../leda/REVIEW-RECORD.md).
 
 ## What is here, and what is not
 
@@ -18,7 +18,7 @@ It exists so that the disability-led organisation engaged under D-018 has someth
 
 1. **Produced** by people who do Easy Read work, paid at commercial rates. Images sourced or drawn; layout applied.
 2. **Tested** with people with intellectual disability, who are paid for that testing.
-3. **Consented** under gate **C3** — by LEDA, once LEDA exists. The exemption at D-018 covers the *establishment* pack only, and it ends when the panel is constituted. Everything after that goes through C3 normally.
+3. **Consented** under gate **C3** — by LEDA, once LEDA exists. The exemption at D-018 (Decided, 10 July 2026) covers the *establishment* pack only, is spent, and ends when the panel is constituted. Everything after that goes through C3 normally.
 
 The order matters. Producing after consent would present the panel with a fait accompli; consenting after production wastes the producer's work if the panel says no. The framework's answer is that C3 consent is sought on the produced artefact, and the panel is told plainly that saying no means paying for the work again. That cost is the project's, not the panel's.
 

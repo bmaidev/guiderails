@@ -1,6 +1,6 @@
 # Expression of interest — Lived Experience Design Authority
 
-**Status: DRAFT — NOT FOR PUBLICATION until D-018 is decided.** An Easy Read pair is drafted at [`../easy-read/EOI-easy-read.md`](../easy-read/EOI-easy-read.md) and must be produced properly, with people who do this work, before either goes out.
+**Status: DRAFT — NOT FOR PUBLICATION.** D-018 is Decided; the independent review it requires is not (see [`REVIEW-RECORD.md`](REVIEW-RECORD.md)). An Easy Read pair is drafted at [`../easy-read/EOI-easy-read.md`](../easy-read/EOI-easy-read.md) and must be produced properly, with people who do this work, before either goes out.
 
 ---
 

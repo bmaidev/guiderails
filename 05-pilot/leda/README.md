@@ -1,6 +1,8 @@
 # LEDA establishment pack
 
-**Status: DRAFT — NOT FOR PUBLICATION. 10 July 2026.** Nothing in this directory may be published, sent to a partner organisation, or shown to a prospective member until **D-018** reads *Decided*. See *The bootstrap problem* below; it is the reason.
+**Status: DRAFT — NOT FOR PUBLICATION. 10 July 2026.**
+
+**D-018 is Decided** (steward, 10 July 2026). That suspended gates C1, C3 and C4 for this pack — once, and never again. **It did not authorise publication.** Publication is authorised by the signed independent review at [`REVIEW-RECORD.md`](REVIEW-RECORD.md), which is not complete and has no reviewer engaged. Nothing here may be published, sent to a partner organisation, or shown to a prospective member until it is signed. See *The bootstrap problem* below; it is the reason.
 
 This directory holds everything needed to bring the Lived Experience Design Authority into existence. The framework that gives LEDA its power — [`../CO-DESIGN-FRAMEWORK.md`](../CO-DESIGN-FRAMEWORK.md) — describes what LEDA does and who is on it. It never says how it comes to exist.
 
@@ -25,9 +27,9 @@ So: **LEDA must consent to the documents that bring LEDA into existence.** The b
 
 This is not a drafting slip to be patched quietly. It is what happens when a governance body is given real authority rather than an advisory role — which is exactly what §3 of the framework set out to do, and the reason it says *"remove it and the pipeline to publication visibly breaks."* The pipeline is behaving as designed. It has broken on its first input.
 
-## The resolution, proposed at D-018
+## The resolution, decided at D-018
 
-The framework is not amended here. Amending it is a C4 act, and doing so to escape a C4 problem would be the precise failure this project exists to name. The proposal lives in `DECISIONS.md` as **D-018**, *Proposed*, for the steward:
+The framework is not amended. Amending it is a C4 act, and doing so to escape a C4 problem would be the precise failure this project exists to name. The decision lives in `DECISIONS.md` as **D-018**, *Decided* by the steward on 10 July 2026:
 
 1. **A narrow establishment exemption.** Gates C1, C3 and C4 do not apply to *establishment materials* — defined exhaustively as the four files in this directory and their Easy Read pairs. They apply to everything else, unchanged. The exemption ends the moment LEDA is constituted, and cannot be extended or reused.
 
@@ -35,12 +37,12 @@ The framework is not amended here. Amending it is a C4 act, and doing so to esca
 
 3. **Retrospective ratification, with a real power to reject.** The first substantive item at LEDA's first meeting is whether to ratify the framework, the establishment exemption, and the pack that recruited them. LEDA may amend or reject any of the three. If LEDA rejects the framework, the framework is rewritten to LEDA's direction before any gate is exercised under it. A ratification that cannot fail is not a ratification, and members are told so in the role description before they apply.
 
-The steward decides. If the steward prefers a different path — for instance, standing up an interim advisory group first, or approaching partner organisations for consent on LEDA's behalf — that is a legitimate answer, and it belongs in D-018 rather than in a quiet amendment to §3.
+The steward decided this path on 10 July 2026, accepting in writing that the exemption is spent, that publication still waits on the review, and that a LEDA refusal at step (3) stops every gate — including C2, and therefore every publishable benchmark result — until LEDA has adopted a text.
 
 ## What must not happen
 
 - **No real personal data enters this repository, ever** (D-009). Expressions of interest, contact details, access requirements, and any information about a person's disability are handled outside this project's public repository, under the ethics and safeguarding commitments in the framework §6, and are never published there. This directory holds forms, not responses.
-- **No approach to a partner organisation before D-018 is decided.** Partner organisations are approached as partners with their own funded roles, not as free recruitment channels (framework §4). Approaching them with unresolved governance would spend the relationship that the project most needs.
+- **No approach to a partner organisation before the review record is signed.** Partner organisations are approached as partners with their own funded roles, not as free recruitment channels (framework §4). Approaching them with unresolved governance would spend the relationship that the project most needs.
 - **No publication of the Easy Read draft as though it were Easy Read.** What sits in `../easy-read/` is drafted text awaiting production and co-design by people who do this work. Publishing it unreviewed would be the project doing to Easy Read exactly what it accuses services of doing to accessibility: declaring conformance it has not earned.
 
 ## Sequence, once D-018 is decided

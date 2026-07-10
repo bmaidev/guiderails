@@ -1,6 +1,6 @@
 # LEDA — first meeting
 
-**Status: DRAFT — NOT FOR PUBLICATION until D-018 is decided.**
+**Status: DRAFT — NOT FOR PUBLICATION. D-018 is Decided; the independent review it requires is not. See [`REVIEW-RECORD.md`](REVIEW-RECORD.md).**
 
 The meeting that constitutes the panel. Three hours, not two, with breaks; papers circulated at least ten working days in advance, in Easy Read and plain language, in each member's stated format.
 

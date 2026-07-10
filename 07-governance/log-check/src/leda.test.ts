@@ -19,11 +19,18 @@
  * recorded consent. No exceptions, "including just this once."
  *
  * The LEDA establishment pack sits under three of those gates and cannot obtain
- * consent, because the body that consents does not yet exist. D-018 proposes a
- * narrow exemption. Until D-018 reads Decided, every file in the pack must say,
- * in its own text, that it is not to be published. A directory of ready-looking
- * recruitment documents with no such marking is one copy-paste from breaching a
- * gate that the whole framework is built on.
+ * consent, because the body that consents does not yet exist. D-018 (Decided,
+ * 10 July 2026) suspends those gates for this pack alone, once, and never again.
+ *
+ * It does not authorise publication. Publication is authorised by a signed
+ * independent review (D-018(b)), recorded at 05-pilot/leda/REVIEW-RECORD.md.
+ * Until that record is signed, every file in the pack must say, in its own text,
+ * that it is not to be published — because a directory of ready-looking
+ * recruitment documents with no such marking is one copy-paste from an approach
+ * to a partner organisation that nobody authorised.
+ *
+ * These checks deliberately do NOT relax when D-018 becomes Decided. Deciding
+ * the exemption was the easy half.
  */
 
 import { deepStrictEqual, ok } from 'node:assert/strict';
@@ -37,22 +44,49 @@ const read = (path: string) => readFileSync(root + path, 'utf8');
 
 const GATED_DIRECTORIES = ['05-pilot/leda', '05-pilot/easy-read'];
 
+/**
+ * The pack: documents that would go out. REVIEW-RECORD.md is not one of them —
+ * it is the record that authorises them, and it is published as evidence
+ * afterwards, so it carries no not-for-publication marking of its own.
+ */
+const NOT_PACK = new Set(['REVIEW-RECORD.md']);
+
 function markdownIn(dir: string): string[] {
   return readdirSync(root + dir)
-    .filter((f) => f.endsWith('.md'))
+    .filter((f) => f.endsWith('.md') && !NOT_PACK.has(f))
     .map((f) => `${dir}/${f}`);
 }
 
 const D018 = parseDecisions(read('DECISIONS.md')).find((d) => d.id === 'D-018');
+
+/** The independent review at D-018(b). Unsigned until a reviewer is named and dated. */
+function reviewIsSigned(): boolean {
+  const record = read('05-pilot/leda/REVIEW-RECORD.md');
+  if (/^\*\*Status: NOT COMPLETE/m.test(record)) return false;
+  // A signature is a named organisation and a date, not a ticked box.
+  return /\| Reviewing organisation \| \S/.test(record) && /\| Date \| \S/.test(record);
+}
 
 test('D-018 exists and states the gates it touches', () => {
   ok(D018, 'the LEDA establishment pack exists with no decision governing its publication');
   ok(/C1/.test(D018.rationale) || /C1/.test(read('DECISIONS.md')), 'D-018 must name the gates it suspends');
 });
 
-test('while D-018 is Proposed, no pack document may present itself as publishable', () => {
-  // The exemption is not in force. Every file says so, or CI fails.
-  if (D018!.status === 'decided') return; // once decided, the markings come off deliberately
+test('deciding D-018 does not authorise publication: the review does', () => {
+  // The exemption suspends the gates. It does not waive the arms-length review
+  // it is conditioned on. Conflating the two is how a "narrow exemption" becomes
+  // a waiver — quietly, and in one commit.
+  ok(D018!.status === 'decided', 'D-018 should be Decided; the steward decided it on 10 July 2026');
+  // Compare with emphasis stripped: the claim matters, not the asterisks.
+  const plain = read('DECISIONS.md').replace(/\*/g, '');
+  ok(
+    /does not authorise publication|not thereby authorised|does not waive the arms-length review/i.test(plain),
+    'D-018 must say in its own text that deciding it does not authorise publication',
+  );
+});
+
+test('until the independent review is signed, no pack document may present itself as publishable', () => {
+  if (reviewIsSigned()) return; // markings come off in the same commit that records the sign-off
 
   const unmarked: string[] = [];
   for (const dir of GATED_DIRECTORIES) {
@@ -66,7 +100,7 @@ test('while D-018 is Proposed, no pack document may present itself as publishabl
     unmarked,
     [],
     'these documents sit under LEDA consent gates C1/C3/C4 and do not say they must not be published. ' +
-      'Prime directive 4 admits no exceptions.',
+      'D-018 suspended the gates; it did not sign the review that authorises publication.',
   );
 });
 
@@ -118,4 +152,21 @@ test('no pack document collects disability information into this repository', ()
       );
     }
   }
+});
+
+test('the exemption is spent: it names its scope and says it is never reusable', () => {
+  // A one-off exemption that does not say it is one-off becomes a precedent the
+  // first time it is convenient. D-018's own text must foreclose that.
+  const decisions = read('DECISIONS.md');
+  const row = /^\| D-018 \|.*$/m.exec(decisions)![0];
+  ok(/never reused|never again|spent/i.test(row), 'D-018 must state that the exemption cannot be invoked again');
+});
+
+test('the review record cannot be signed by the steward alone', () => {
+  const record = read('05-pilot/leda/REVIEW-RECORD.md');
+  for (const requirement of ['Disability-led (required)', 'Independent of the steward (required)', 'paid at commercial rates']) {
+    ok(record.includes(requirement), `the review record must require: ${requirement}`);
+  }
+  // The reviewer may say the whole exercise was wrong, and that is published.
+  ok(/should have happened at all/i.test(record), 'the reviewer must be able to record dissent, for publication');
 });

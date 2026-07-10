@@ -11,7 +11,7 @@
    "demonstratedBy": [
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 121
+     "line": 129
     }
    ],
    "principleTechniques": null,
@@ -27,7 +27,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 144
+     "line": 152
     }
    ],
    "principleTechniques": null,
@@ -43,7 +43,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 130
+     "line": 138
     }
    ],
    "principleTechniques": null,
@@ -79,7 +79,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 101
+     "line": 109
     }
    ],
    "principleTechniques": null,
@@ -91,7 +91,7 @@
    "demonstratedBy": [
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 129
+     "line": 137
     }
    ],
    "principleTechniques": null,
@@ -140,7 +140,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 192
+     "line": 200
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/agent-surface.test.ts",
@@ -205,7 +205,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 549
+     "line": 557
     }
    ],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
@@ -221,7 +221,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 549
+     "line": 557
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/agent-surface.test.ts",
@@ -255,7 +255,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 50
+     "line": 58
     }
    ],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
@@ -291,7 +291,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 167
+     "line": 175
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/agent-surface.test.ts",
@@ -343,7 +343,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 905
+     "line": 913
     }
    ],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
@@ -363,7 +363,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 51
+     "line": 59
     }
    ],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
@@ -375,7 +375,7 @@
    "demonstratedBy": [
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 110
+     "line": 118
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/agent-surface.test.ts",
@@ -493,7 +493,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 471
+     "line": 479
     },
     {
      "file": "03-reference-implementation/conformant/src/store.ts",
@@ -513,7 +513,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 878
+     "line": 886
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/accountability.ts",
@@ -585,7 +585,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 145
+     "line": 153
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/accountability.ts",
@@ -609,7 +609,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 156
+     "line": 164
     }
    ],
    "principleTechniques": "determination citation at the point of action (the service issues an opaque `determinationId` carrying no principal; the agent presents it with the consequential action, so the audit shows reliance without attributing the query — Q11); OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; single-use confirmation tokens issued to the principal's nominated channel (5.5.2); notification via existing secure inboxes; content provenance marking; a principal-only flag published in the register, evaluated before the delegation is read, so a conformant agent is warned off before it tries and a refusal never leaks whether the delegation would otherwise have sufficed (5.3.3).",
@@ -641,7 +641,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 148
+     "line": 156
     }
    ],
    "principleTechniques": "determination citation at the point of action (the service issues an opaque `determinationId` carrying no principal; the agent presents it with the consequential action, so the audit shows reliance without attributing the query — Q11); OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; single-use confirmation tokens issued to the principal's nominated channel (5.5.2); notification via existing secure inboxes; content provenance marking; a principal-only flag published in the register, evaluated before the delegation is read, so a conformant agent is warned off before it tries and a refusal never leaks whether the delegation would otherwise have sufficed (5.3.3).",
@@ -657,7 +657,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 373
+     "line": 381
     },
     {
      "file": "03-reference-implementation/parity/src/divergences.ts",
@@ -677,7 +677,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 148
+     "line": 156
     },
     {
      "file": "03-reference-implementation/conformant/src/store.ts",
@@ -697,7 +697,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 148
+     "line": 156
     },
     {
      "file": "03-reference-implementation/conformant/src/store.ts",
@@ -751,7 +751,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 752
+     "line": 760
     }
    ],
    "principleTechniques": "determination citation at the point of action (the service issues an opaque `determinationId` carrying no principal; the agent presents it with the consequential action, so the audit shows reliance without attributing the query — Q11); OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; single-use confirmation tokens issued to the principal's nominated channel (5.5.2); notification via existing secure inboxes; content provenance marking; a principal-only flag published in the register, evaluated before the delegation is read, so a conformant agent is warned off before it tries and a refusal never leaks whether the delegation would otherwise have sufficed (5.3.3).",

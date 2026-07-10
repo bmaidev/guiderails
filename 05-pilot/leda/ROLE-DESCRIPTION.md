@@ -1,6 +1,6 @@
 # LEDA member — role description
 
-**Status: DRAFT — NOT FOR PUBLICATION until D-018 is decided.**
+**Status: DRAFT — NOT FOR PUBLICATION. D-018 is Decided; the independent review it requires is not. See [`REVIEW-RECORD.md`](REVIEW-RECORD.md).**
 
 ## The short version
 

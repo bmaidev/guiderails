@@ -1,6 +1,6 @@
 # Remuneration
 
-**Status: DRAFT — NOT FOR PUBLICATION until D-018 is decided. The rate is a steward decision and is deliberately not set here.**
+**Status: DRAFT — NOT FOR PUBLICATION. D-018 is Decided; the independent review it requires is not. See [`REVIEW-RECORD.md`](REVIEW-RECORD.md) The rate remains a steward decision and is deliberately not set here.**
 
 ## The principle
 
