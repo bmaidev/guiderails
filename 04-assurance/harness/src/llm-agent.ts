@@ -43,10 +43,12 @@ export { googleDriver, DEFAULT_GOOGLE_MODEL } from './providers/google.ts';
 export type { Vendor } from './models.ts';
 export {
   DEFAULT_MODELS,
+  LIVE_SMOKE_RUNS,
   MODEL_VARIABLES,
   ROUND_MODELS,
   SMOKE_MODELS,
   VENDORS,
+  liveSmokeRunFor,
   resolveModel,
   tierOf,
 } from './models.ts';

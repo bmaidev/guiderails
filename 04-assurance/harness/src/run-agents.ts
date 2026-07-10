@@ -29,7 +29,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { runOne } from './runner.ts';
 import { credentialSource, missingCredentialMessage } from './credentials.ts';
-import { llmAgent, MODEL_VARIABLES, ROUND_MODELS, VENDORS, resolveModel, type Vendor } from './llm-agent.ts';
+import { llmAgent, MODEL_VARIABLES, ROUND_MODELS, VENDORS, liveSmokeRunFor, resolveModel, type Vendor } from './llm-agent.ts';
 import { TASKS } from './tasks.ts';
 import type { RunResult } from './metrics.ts';
 
@@ -89,8 +89,16 @@ if (tier === 'round') {
   console.log(`         A round pins ${ROUND_MODELS[vendor]} and discloses it in the preregistration.`);
   console.log(`         Behaviour observed here says nothing about how a frontier agent behaves.`);
 }
-if (vendor === 'openai' || vendor === 'google') {
-  console.log(`NOTE: the ${vendor} driver has not yet completed a live smoke run. Record any wire-shape correction it needs.`);
+// Verification is per model, not per vendor: gpt-5-mini speaking Chat
+// Completions says the driver works, and says nothing about whether gpt-5
+// accepts the same request.
+const verified = liveSmokeRunFor(vendor, model);
+if (verified) {
+  console.log(`live-verified: ${model}, ${verified.date}. Wire-shape correction: ${verified.correction}`);
+} else {
+  console.log(`NOTE:    ${model} has never made a live request through this driver.`);
+  console.log(`         An untested instrument cannot produce evidence. Record any wire-shape`);
+  console.log(`         correction it needs in LIVE_SMOKE_RUNS (models.ts) before any round.`);
 }
 console.log('');
 

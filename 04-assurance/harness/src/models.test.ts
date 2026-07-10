@@ -19,9 +19,11 @@ import { test } from 'node:test';
 import { anthropicDriver } from './providers/anthropic.ts';
 import {
   DEFAULT_MODELS,
+  LIVE_SMOKE_RUNS,
   ROUND_MODELS,
   SMOKE_MODELS,
   VENDORS,
+  liveSmokeRunFor,
   resolveModel,
   supportsAdaptiveThinking,
   tierOf,
@@ -117,4 +119,35 @@ test('thinking can be forced off on a model that supports it', async () => {
   const driver = anthropicDriver({ model: ROUND_MODELS.anthropic, thinking: false, client: client as never });
   await driver.begin('s', [], 'hello').next({ kind: 'start' });
   ok(!('thinking' in captured));
+});
+
+test('every live-verified model belongs to the vendor that claims it', () => {
+  // A register that can name any string is not evidence of anything.
+  for (const vendor of VENDORS) {
+    for (const run of LIVE_SMOKE_RUNS[vendor]) {
+      ok(run.model.length > 0, `${vendor} has a nameless run`);
+      ok(/^\d{4}-\d{2}-\d{2}$/.test(run.date), `${vendor}/${run.model}: date must be ISO`);
+      ok(run.correction.length > 0, `${vendor}/${run.model}: say "none" rather than nothing`);
+    }
+  }
+});
+
+test('the register does not overstate itself: haiku is the default and has never run live', () => {
+  // Written as a fact, not an aspiration. `claude-haiku-4-5` is the Anthropic
+  // default, so the next `npm run agents` with no --model is its first live
+  // request — and it is the model whose adaptive-thinking gate has never been
+  // tested against the real API. The banner says so; this pins it.
+  strictEqual(liveSmokeRunFor('anthropic', SMOKE_MODELS.anthropic), undefined);
+  ok(liveSmokeRunFor('openai', SMOKE_MODELS.openai), 'gpt-5-mini ran live 2026-07-10');
+  ok(liveSmokeRunFor('google', SMOKE_MODELS.google), 'gemini-3.5-flash ran live 2026-07-10');
+});
+
+test('a model with no live run is reported as unverified', () => {
+  // gpt-5 and gemini-3-pro are the round models and have never run live. The
+  // register must keep saying so until they do: an untested instrument cannot
+  // produce evidence, and a round pins the round model.
+  strictEqual(liveSmokeRunFor('openai', ROUND_MODELS.openai), undefined);
+  strictEqual(liveSmokeRunFor('google', ROUND_MODELS.google), undefined);
+  strictEqual(liveSmokeRunFor('anthropic', ROUND_MODELS.anthropic)?.model, ROUND_MODELS.anthropic);
+  strictEqual(liveSmokeRunFor('anthropic', 'claude-not-a-model'), undefined);
 });

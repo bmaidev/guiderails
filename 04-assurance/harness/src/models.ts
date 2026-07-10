@@ -93,6 +93,41 @@ export function resolveModel(
   return { model, source, tier: tierOf(vendor, model) };
 }
 
+export interface LiveSmokeRun {
+  /** The exact model ID that made real requests. A sibling model is not this one. */
+  model: string;
+  /** ISO date of the run. */
+  date: string;
+  /** What the wire shape turned out to need, or none. */
+  correction: string;
+}
+
+/**
+ * Which driver+model pairs have actually spoken to a live API.
+ *
+ * An adapter that has never made a real request is an untested instrument and
+ * cannot produce evidence. This register is the evidence that it has, and it is
+ * keyed on the **exact model ID**: `gpt-5-mini` speaking Chat Completions tells
+ * you the driver works, and tells you nothing about whether `gpt-5` accepts the
+ * same request. Methodology §3 pins the round model, so the round model is the
+ * one that must appear here before a round.
+ */
+export const LIVE_SMOKE_RUNS: Record<Vendor, LiveSmokeRun[]> = {
+  anthropic: [
+    {
+      model: 'claude-opus-4-8',
+      date: '2026-07-09',
+      correction: 'Strict tool schemas rejected: `http_request.body` is deliberately free-form, which strict mode forbids. `strict: true` dropped from both tools.',
+    },
+  ],
+  openai: [{ model: 'gpt-5-mini', date: '2026-07-10', correction: 'none — the wire shape was accepted as written.' }],
+  google: [{ model: 'gemini-3.5-flash', date: '2026-07-10', correction: 'none — the wire shape was accepted as written.' }],
+};
+
+export function liveSmokeRunFor(vendor: Vendor, model: string): LiveSmokeRun | undefined {
+  return LIVE_SMOKE_RUNS[vendor].find((r) => r.model === model);
+}
+
 /**
  * Adaptive thinking exists on Claude 4.6 and later. Earlier models reject it,
  * and the cheap tier is one of them — so the tier and the thinking parameter

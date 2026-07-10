@@ -18,10 +18,11 @@
  * Google (Gemini) driver — vendor #3, satisfying methodology §3's requirement
  * of at least three independent frontier agents from different vendors.
  *
- * NOT YET EXERCISED AGAINST THE LIVE API. Loop mechanics are covered by stub
- * tests; the wire shape is not. An untested instrument cannot produce evidence:
- * this vendor must complete a live smoke run before entering any round, and any
- * correction it needs must be recorded here.
+ * Live-verified on 2026-07-10 with `gemini-3.5-flash`: the wire shape was
+ * accepted as written — including the synthesised tool-call ids — and needed no
+ * correction. That verification is per model, not per vendor: the round model
+ * `gemini-3-pro` has not yet made a live request through this driver, and must
+ * before it enters a round (LIVE_SMOKE_RUNS in models.ts).
  */
 
 import { GoogleGenAI } from '@google/genai';

@@ -18,10 +18,10 @@
  * OpenAI driver for the vendor-neutral agent loop — vendor #2 of the ≥3 the
  * methodology requires (§3). Uses Chat Completions function calling.
  *
- * NOT YET EXERCISED AGAINST THE LIVE API. The loop mechanics are covered by
- * stub tests; the wire shape is not. Before this vendor enters any round it
- * must complete a live smoke run, and any correction recorded here. Treat an
- * untested adapter as an untested instrument: it cannot produce evidence.
+ * Live-verified on 2026-07-10 with `gpt-5-mini`: the wire shape was accepted as
+ * written and needed no correction. That verification is per model, not per
+ * vendor — the round model `gpt-5` has not yet made a live request through this
+ * driver, and must before it enters a round (LIVE_SMOKE_RUNS in models.ts).
  */
 
 import OpenAI from 'openai';
