@@ -1,6 +1,6 @@
 # Research dossier
 
-**Status:** v0.2, compiled 9 July 2026. Living document. v0.2 adds §2.1 (baseline pattern derivations, S-55–S-62).
+**Status:** v0.3, 10 July 2026. Living document. v0.2 added §2.1 (baseline pattern derivations, S-55–S-62). v0.3 completes the §6 comparator pass (S-63–S-69), withdraws the MCP-references-Arazzo claim, and adds machine-readable source records under `sources/`.
 
 **Verification key:**
 - **[VERIFIED]** — primary or official source (standards body, government publication, specification text) accessed on the date in the source register.
@@ -36,7 +36,8 @@ Key facts:
 - Core constructs: `sourceDescriptions`, `workflows`, `steps`, `successCriteria`, `outputs`, runtime expressions [S-18, S-19].
 - Officially stated use cases include **safe, predictable AI agent execution** (agents follow explicit validated workflows with defined inputs, outputs and success criteria) and **automated regulatory compliance checks** [S-16] — both directly on-point for government.
 - Roadmap includes **actor-in-the-loop (human or agent) steps** for workflows requiring approval, and MCP/A2A step types [S-16].
-- Architectural pattern relevant to us: expose *workflow-level* capabilities rather than raw endpoints, shifting orchestration out of the model's reasoning loop into a deterministic spec; pairs naturally with MCP tools [S-19] **[SECONDARY]**. A claim that the MCP specification references Arazzo for multi-step workflows is **[TO VERIFY]** against MCP spec text [S-48].
+- Architectural pattern relevant to us: expose *workflow-level* capabilities rather than raw endpoints, shifting orchestration out of the model's reasoning loop into a deterministic spec; pairs naturally with MCP tools [S-19] **[SECONDARY]**.
+- **Claim withdrawn (10 July 2026).** A secondary source asserted that the MCP specification references Arazzo for multi-step workflows [S-48]. Checked against both primary texts: the MCP specification (revision 2025-11-25) does not mention Arazzo [S-63], Arazzo v1.1.0 does not mention MCP [S-18], and a code search across the MCP organisation returns no match. **MCP and Arazzo are independent specifications with no cross-reference in either normative document**; the linkage exists only in third-party commentary proposing that Arazzo workflows *could be surfaced as* MCP tools. S-48 is downgraded to SECONDARY.
 
 **MCP** (Anthropic) standardises backend tool/context access for agents; **A2A** (Google) standardises agent-to-agent interaction; **NLWeb** (Microsoft) provides a natural-language query endpoint returning structured schema.org responses, with instances doubling as MCP servers [S-13] **[SECONDARY]**. These are complements: MCP for service back-ends, WebMCP for the browser surface, Arazzo for the journey contract.
 
@@ -181,20 +182,26 @@ Recorded because form-heavy, rules-driven, high-stakes services are where the st
 
 ---
 
-## 6. International scan (thin — pass 2 priority)
+## 6. International scan
 
-- No identified national government has published citizen-side agent-access standards for its services as at this pass **[TO VERIFY — dedicated pass on GDS, US (GSA/OMB/21st Century IDEA lineage), EU (eIDAS 2/EUDI wallet delegation, Single Digital Gateway once-only), Singapore GovTech, Estonia]**.
-- US federal activity is presently about *governing* agents (NIST CAISI, OMB memoranda), mirroring Australia's addendum — the same gap, unfilled [S-11].
-- EU delegation infrastructure (EUDI wallet) may become the strongest international comparator for Principle 5 **[TO VERIFY]**.
+**Pass 2 completed 10 July 2026** against the sources registered at S-64–S-69. The scan distinguished four things that are routinely conflated: government's *own internal* use of AI; general AI-assurance frameworks; accessibility standards; and **citizen-side agent access** — whether a person's own agent may be authorised to act for them against a government service. Only the last is in scope.
+
+- **No identified national government has published a citizen-side agent-access standard for its services, as at 10 July 2026** [S-64, S-65, S-67, S-68, S-69] **[VERIFIED — negative claim; see limitation below]**. Every candidate examined resolves to internal-use policy, general AI governance, or academic proposal.
+- **Closest live public-sector activity:** GOV.UK's AI Studio work on service typologies for agentic AI, which its own text describes as exploratory research and design, scoped to government-provided assistants targeted from 2027 — not a standard, and not about a citizen's own agent [S-64] **[VERIFIED — primary]**.
+- **Closest articulated model:** the academic *Authenticated Delegation and Authorized AI Agents* framework, the most developed statement of citizen→agent delegated authority against services, adopted by no government [S-66] **[VERIFIED — preprint]**.
+- **US federal activity** is about *governing* agents used by agencies (NIST CAISI, OMB memoranda), mirroring Australia's addendum — the same gap, unfilled [S-11, S-68].
+- **EU delegation infrastructure (EUDI wallet).** As at ARF v2.4.0, its representation model covers natural-person-to-natural-person and person-to-organisation representation — guardianship, power of attorney, company signatories — and **does not extend to non-human agents**; the delegation use cases are flagged for future ARF versions [S-65] **[VERIFIED — primary]**. It is therefore a **structural precedent** for Principle 5's delegation layer, not a citizen-side agent-access standard, and must not be cited as though it authorised agent delegation today.
+
+**Limitation on the negative claim.** It is an absence of evidence, established by English-language search. A non-English national instrument cannot be excluded. The claim is dated, and the two likeliest first movers to refute it — the UK (assistants targeted from 2027) and the EU (ARF future versions) — are named above; re-check both before any external use of this claim.
 
 ---
 
 ## 7. Gaps and next research passes
 
-1. **Primary-source reads:** WebMCP Draft CG Report text; Lighthouse agentic audit documentation; MCP spec (Arazzo reference check); NIST CAISI/NCCoE originals; OECD DGO 2026; DXP 2026 update detail.
+1. **Primary-source reads:** WebMCP Draft CG Report text; Lighthouse agentic audit documentation; NIST CAISI/NCCoE originals; DXP 2026 update detail. *(MCP spec Arazzo-reference check: done 10 Jul 2026, claim withdrawn — §1.2. OECD DGO 2026: OECD primary now registered at S-67.)*
 2. **Legal pass (OD-04):** DDA application to authorised agents; delegation law; myGov nominee/authorised-representative architecture; privacy (APP) analysis of scoped tool calls vs page scraping.
 3. **Evidence pass:** independent measurements of agent performance vs semantic quality (WebArena/Mind2Web-class literature); disability-community research on AI assistant use — and primary co-design to generate what literature lacks. **Government-specific accessibility prevalence** for the baseline's commission patterns (§2.1 limitation 1): a measured sample of Australian government transactional forms, not home pages.
-4. **Comparator pass:** §6 above.
+4. **Comparator pass:** §6 done 10 Jul 2026 (S-64–S-69). Standing action: re-check GOV.UK/DSIT and the EUDI ARF changelog before any external use of the negative claim.
 5. **Benchmark methodology:** task-suite design, agent matrix, statistical protocol, failure taxonomy (feeds /04-assurance).
 
 ---
@@ -252,7 +259,7 @@ All sources accessed 9 July 2026.
 | S-45 | opencollective.com/openfisca; DPGA registry entry | VERIFIED |
 | S-46 | dta.gov.au — OECD Digital Government Outlook 2026 article | VERIFIED (DTA account; OECD primary pass 2) |
 | S-47 | dta.gov.au — media releases index (addendum; myGov guidance; DXP updates) | VERIFIED |
-| S-48 | apiscout.dev — Arazzo guide (MCP-references-Arazzo claim) | TO VERIFY |
+| S-48 | apiscout.dev — Arazzo guide (MCP-references-Arazzo claim) | SECONDARY — claim checked 10 Jul 2026 against primary texts and **not supported**; withdrawn from §1.2 |
 | S-49 | arXiv 2510.05159 — backdoors/prompt-injection in agent supply chain | VERIFIED (preprint) |
 | S-50 | accessibilitychecker.org — AI agents for web accessibility | SECONDARY |
 | S-51 | gold.designsystemau.org; community.digital.gov.au — AuDS decommission notice (Sept 2021) and GOLD fork; itnews.com.au / innovationaus.com reporting | VERIFIED (decommission, fork); reporting SECONDARY |
@@ -267,3 +274,10 @@ All sources accessed 9 July 2026.
 | S-60 | w3.org/WAI/WCAG22/Techniques/failures/F73 and Understanding SC 1.4.1 (Use of Color) | VERIFIED (W3C normative technique); prevalence not separately measured |
 | S-61 | robodebt.royalcommission.gov.au/publications/report — Royal Commission into the Robodebt Scheme, recommendation 17.1 (publish that ADM is used, how it works, and make business rules and algorithms available for independent expert scrutiny); pmc.gov.au — Government Response, Nov 2023 | VERIFIED (Royal Commission primary) |
 | S-62 | webaim.org/techniques/formvalidation — *Usable and Accessible Form Validation and Error Recovery* (errors must be associated with their controls; mechanism to reach the field in error) | VERIFIED (authoritative practitioner guidance) |
+| S-63 | modelcontextprotocol.io/specification/2025-11-25 — Model Context Protocol specification | VERIFIED (primary; accessed 10 Jul 2026) |
+| S-64 | alphagov.github.io/govuk-ai — GOV.UK AI Studio, service typologies for agentic AI (describes itself as exploratory research and design) | VERIFIED (primary; accessed 10 Jul 2026) |
+| S-65 | eudi.dev/2.4.0/architecture-and-reference-framework-main — EUDI Wallet Architecture and Reference Framework v2.4.0 (representation/delegation topic) | VERIFIED (primary; accessed 10 Jul 2026) |
+| S-66 | arXiv 2501.09674 — *Authenticated Delegation and Authorized AI Agents* | VERIFIED (preprint; accessed 10 Jul 2026) |
+| S-67 | oecd.org — *Governing with Artificial Intelligence* / Digital Government Outlook 2026 | SECONDARY (survey; OECD primary for S-46's account) |
+| S-68 | whitehouse.gov — OMB M-25-21, *Accelerating Federal Use of AI* | VERIFIED (primary; accessed 10 Jul 2026; cited as evidence of the internal-use scope, not of citizen-side access) |
+| S-69 | tech.gov.sg/technews/ai-agents — Singapore GovTech, AI agents for public officers | VERIFIED (primary; accessed 10 Jul 2026; internal use) |

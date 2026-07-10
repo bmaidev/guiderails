@@ -166,3 +166,12 @@ test('a resolved open question names the decision that resolved it', () => {
     strictEqual(decision.status, 'decided', `${question} is resolved by ${decisionId}, which is not Decided`);
   }
 });
+
+test('the reference implementation claims the version of the standard that exists', () => {
+  // The conformant build published `standardClaimed: {version: '0.2'}` while the
+  // model was at v0.5. A reference implementation advertising a stale version of
+  // the standard it implements is the repository failing its own dogfooding rule.
+  const server = read('03-reference-implementation/conformant/src/server.ts');
+  const claimed = /export const MODEL_VERSION = '([\d.]+)';/.exec(server)?.[1];
+  strictEqual(claimed, parseVersion(MODEL), 'the fixture claims a different version of the standard than MODEL.md states');
+});

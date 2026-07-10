@@ -71,8 +71,8 @@ Sponsor-, client- and partner-specific material is deliberately **not** in this 
 | Phase | Window | Output |
 |---|---|---|
 | 0 — Seed | Jul 2026 | Thesis, research dossier v0.1, model skeleton v0.1 ✅ |
-| 1 — Model | Jul–Aug 2026 | Model v0.2 (51 criteria) ✅ · legal issues brief ✅ (counsel engagement pending, OD-04) · co-design framework ✅ (LEDA recruitment pending) · benchmark methodology ✅ |
-| 2 — Proof | Aug–Sep 2026 | Reference implementation (realistic multi-step government journey, baseline + conformant); harness; first published numbers |
+| 1 — Model | Jul–Aug 2026 | Model v0.5 (55 criteria) ✅ · legal issues brief ✅ · co-design framework ✅ · benchmark methodology ✅ · research dossier v0.3 ✅ — **phase not closed:** counsel unengaged (OD-04, a stated close condition) and LEDA unrecruited, so the framework's Phase 1 co-design method is unexecuted |
+| 2 — Proof | Aug–Sep 2026 | Reference implementation (baseline + conformant, parity-audited) ✅ · harness with three live-verified vendor drivers ✅ · first published numbers — **blocked**: gate C2, a result owner (OD-07), and four independent people (parity auditor, holdout author, two adjudicators) |
 | 3 — Exposure | Sep–Oct 2026 | Public v0.9 for comment; sector and standards-community engagement |
 | 4 — v1.0 | From Oct 2026 | v1.0 release; pilot delivery with partner agency |
 
