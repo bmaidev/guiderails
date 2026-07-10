@@ -15,6 +15,10 @@
  */
 
 /**
+ * Criterion 2.1.1 (A) — the journey's human interface conforms to WCAG 2.2 AA —
+ * demonstrated. This is the prerequisite criterion (MODEL.md §4, D-006), and
+ * this file is the technique that enforces it.
+ *
  * Automated WCAG checks (OI-2, first half): axe-core over every rendered
  * page state of the J1 journey, in jsdom. Violations fail the build
  * (CLAUDE.md engineering standards). Colour-contrast is excluded here —
