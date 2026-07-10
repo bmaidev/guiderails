@@ -45,6 +45,14 @@ import { JOURNEYS, CA_REGISTER, REFERENCE_PREFIX, duplicateKey, PERIOD_SURFACE, 
 import { Store } from './store.ts';
 import { page, form, esc, SERVICE_DESC_PATH } from './html.ts';
 
+/**
+ * The version of the standard this build claims conformance to. It must track
+ * 02-model/MODEL.md's header: a reference implementation advertising a stale
+ * version of the standard it implements is the repository failing its own
+ * dogfooding rule. A test in 07-governance/log-check holds the two together.
+ */
+export const MODEL_VERSION = '0.5';
+
 export const SURFACE_VERSION = '0.2.0';
 export const SURFACE_LAST_MODIFIED = '2026-07-09';
 export const SESSION_TIME_LIMIT_MINUTES = 60; // 2.6.1: declared before the journey begins
@@ -124,7 +132,7 @@ function serviceDescription(origin: string): Record<string, unknown> {
       administeringAuthority: 'Commonwealth Skills Support Agency (FICTIONAL — Guiderails fixture, D-009)',
       purpose: 'A flat-rate fortnightly payment supporting people undertaking approved skills courses.',
       canonicalEntryPoint: `${origin}/journeys/J1/steps/identity`,
-      standardClaimed: { standard: 'Guiderails', version: '0.2' },
+      standardClaimed: { standard: 'Guiderails', version: MODEL_VERSION },
     },
     surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED }, // 1.3.1
     // 1.1.4 / 1.1.3: the discovery surfaces, each naming this same description
