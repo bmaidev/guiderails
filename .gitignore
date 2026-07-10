@@ -1,2 +1,7 @@
 .DS_Store
 node_modules/
+
+# Credentials. Never committed; .env.example carries the variable names only.
+.env
+.env.*
+!.env.example

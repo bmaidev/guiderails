@@ -17,17 +17,19 @@
 /**
  * Exploratory real-agent runs. Usage:
  *
- *   npm run agents -- [--vendor anthropic|openai] [--model <id>] [--build conformant|baseline|both] [--tasks T1a,T3,...]
+ *   npm run agents -- [--vendor anthropic|openai|google] [--model <id>] [--build conformant|baseline|both] [--tasks T1a,T3,...]
  *
- * Requires the chosen vendor's API credentials in the environment. Results are
- * written to runs/ (gitignored). D-008: these are EXPLORATORY runs —
+ * Requires the chosen vendor's API credentials in the environment. The model
+ * defaults to the cheap tier; `--model` or `<VENDOR>_MODEL` in .env overrides it.
+ * Results are written to runs/ (gitignored). D-008: these are EXPLORATORY runs —
  * not a benchmark round (no preregistration, no frozen briefs, n=1,
  * single vendor) — and must never be published or cited.
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { runOne } from './runner.ts';
-import { llmAgent, DEFAULT_MODELS, VENDORS, type Vendor } from './llm-agent.ts';
+import { credentialSource, missingCredentialMessage } from './credentials.ts';
+import { llmAgent, MODEL_VARIABLES, ROUND_MODELS, VENDORS, resolveModel, type Vendor } from './llm-agent.ts';
 import { TASKS } from './tasks.ts';
 import type { RunResult } from './metrics.ts';
 
@@ -49,7 +51,16 @@ if (!VENDORS.includes(vendor)) {
   console.error(`Unknown vendor "${vendor}". Use one of: ${VENDORS.join(', ')}.`);
   process.exit(1);
 }
-const model = positionalModel ?? flag('model', DEFAULT_MODELS[vendor]);
+// Before anything is spun up or any request is made. A run that dies on task 4
+// of 12 for want of a key has already cost minutes and told us nothing.
+const missing = missingCredentialMessage(vendor);
+if (missing) {
+  console.error(missing);
+  process.exit(1);
+}
+
+const flagModel = positionalModel ?? (args.indexOf('--model') >= 0 ? flag('model', '') : '');
+const { model, source: modelSource, tier } = resolveModel(vendor, flagModel);
 const buildArg = positionalBuild ?? flag('build', 'conformant');
 const taskIds = (positionalTasks ?? flag('tasks', 'T1a,T1b,T1c,T3,T4,T5,T6')).split(',');
 
@@ -63,6 +74,21 @@ if (tasks.length === 0) {
 console.log('EXPLORATORY REAL-AGENT RUN — not a benchmark round (D-008).');
 console.log('No preregistration, no frozen briefs, n=1, single vendor. Never publish or cite.\n');
 console.log(`vendor=${vendor} model=${model} builds=${builds.join(',')} tasks=${tasks.map((t) => t.id).join(',')}`);
+// The variable name, never the value: enough to catch "I set the wrong one".
+console.log(`credential=${credentialSource(vendor)} (value never logged)`);
+console.log(`model tier=${tier} (from ${modelSource === 'flag' ? '--model' : modelSource === 'env' ? MODEL_VARIABLES[vendor] : 'default'})`);
+
+if (tier === 'round') {
+  // The frontier tier is what a round pins and what a round pays for. On an
+  // exploratory run it buys nothing a cheap model does not: the question is
+  // whether the driver speaks the wire protocol.
+  console.log(`WARNING: ${model} is the frontier tier. Expect this to cost dollars, not cents.`);
+  console.log(`         For a smoke run, drop --model, or unset ${MODEL_VARIABLES[vendor]}.`);
+} else {
+  console.log(`NOTE:    cheap tier — enough to prove the driver speaks the wire protocol.`);
+  console.log(`         A round pins ${ROUND_MODELS[vendor]} and discloses it in the preregistration.`);
+  console.log(`         Behaviour observed here says nothing about how a frontier agent behaves.`);
+}
 if (vendor === 'openai' || vendor === 'google') {
   console.log(`NOTE: the ${vendor} driver has not yet completed a live smoke run. Record any wire-shape correction it needs.`);
 }
@@ -84,6 +110,12 @@ for (const build of builds) {
 mkdirSync(new URL('../runs/', import.meta.url), { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const outPath = new URL(`../runs/exploratory-${vendor}-${model}-${stamp}.json`, import.meta.url);
-writeFileSync(outPath, JSON.stringify({ exploratory: true, vendor, model, date: stamp, results }, null, 1));
+// tier and modelSource are recorded because a model set from an untracked .env
+// is otherwise invisible to whoever later reads the run file and wonders why
+// the numbers look like that.
+writeFileSync(
+  outPath,
+  JSON.stringify({ exploratory: true, vendor, model, tier, modelSource, date: stamp, results }, null, 1),
+);
 console.log(`\nSaved (local only, gitignored): ${outPath.pathname}`);
 console.log('Reminder: exploratory — not publishable (D-008).');

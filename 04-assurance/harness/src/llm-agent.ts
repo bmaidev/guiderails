@@ -27,26 +27,29 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type OpenAI from 'openai';
 import { agentFor, type AgentOptions } from './agent-loop.ts';
-import { anthropicDriver, DEFAULT_ANTHROPIC_MODEL } from './providers/anthropic.ts';
-import { openaiDriver, DEFAULT_OPENAI_MODEL } from './providers/openai.ts';
-import { googleDriver, DEFAULT_GOOGLE_MODEL, type GoogleGenAiLike } from './providers/google.ts';
+import { anthropicDriver } from './providers/anthropic.ts';
+import { openaiDriver } from './providers/openai.ts';
+import { googleDriver, type GoogleGenAiLike } from './providers/google.ts';
 import type { AgentAdapter } from './scripted-probe.ts';
+import type { Vendor } from './models.ts';
 
 export { agentFor } from './agent-loop.ts';
 export { anthropicDriver, DEFAULT_ANTHROPIC_MODEL } from './providers/anthropic.ts';
 export { openaiDriver, DEFAULT_OPENAI_MODEL } from './providers/openai.ts';
 export { googleDriver, DEFAULT_GOOGLE_MODEL } from './providers/google.ts';
 
-/** Methodology §3: >=3 independent frontier agents from different vendors. */
-export type Vendor = 'anthropic' | 'openai' | 'google';
-
-export const VENDORS: Vendor[] = ['anthropic', 'openai', 'google'];
-
-export const DEFAULT_MODELS: Record<Vendor, string> = {
-  anthropic: DEFAULT_ANTHROPIC_MODEL,
-  openai: DEFAULT_OPENAI_MODEL,
-  google: DEFAULT_GOOGLE_MODEL,
-};
+// Vendors, tiers and model resolution live in models.ts — one place decides
+// what runs, so a cheap default cannot drift apart from what a round pins.
+export type { Vendor } from './models.ts';
+export {
+  DEFAULT_MODELS,
+  MODEL_VARIABLES,
+  ROUND_MODELS,
+  SMOKE_MODELS,
+  VENDORS,
+  resolveModel,
+  tierOf,
+} from './models.ts';
 
 export interface LlmAgentOptions extends AgentOptions {
   vendor?: Vendor;

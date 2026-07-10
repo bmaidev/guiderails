@@ -27,7 +27,10 @@
 import { GoogleGenAI } from '@google/genai';
 import type { ModelDriver, ModelSession, ModelTurn, ToolSpec, TurnInput } from '../agent-loop.ts';
 
-export const DEFAULT_GOOGLE_MODEL = 'gemini-3-pro';
+import { SMOKE_MODELS } from '../models.ts';
+
+/** The cheap tier. A round pins its model explicitly (models.ts). */
+export const DEFAULT_GOOGLE_MODEL = SMOKE_MODELS.google;
 
 /** The subset of the SDK the driver uses; keeps the stub client honest. */
 export interface GoogleGenAiLike {

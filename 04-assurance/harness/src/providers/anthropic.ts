@@ -18,20 +18,26 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import type { ModelDriver, ModelSession, ModelTurn, ToolSpec, TurnInput } from '../agent-loop.ts';
+import { SMOKE_MODELS, supportsAdaptiveThinking } from '../models.ts';
 
-export const DEFAULT_ANTHROPIC_MODEL = 'claude-opus-4-8';
+/** The cheap tier. A round pins its model explicitly (models.ts). */
+export const DEFAULT_ANTHROPIC_MODEL = SMOKE_MODELS.anthropic;
 
 export interface AnthropicDriverOptions {
   model?: string;
   /** Injectable for tests; defaults to env-credential Anthropic(). */
   client?: Pick<Anthropic, 'messages'>;
   maxTokens?: number;
+  /** Force thinking off. Ignored where the model cannot think adaptively anyway. */
+  thinking?: boolean;
 }
 
 export function anthropicDriver(opts: AnthropicDriverOptions = {}): ModelDriver {
   const model = opts.model ?? DEFAULT_ANTHROPIC_MODEL;
   const client = opts.client ?? new Anthropic();
   const maxTokens = opts.maxTokens ?? 16000;
+  // Sending `thinking` to a model that predates adaptive thinking is a 400.
+  const thinking = (opts.thinking ?? true) && supportsAdaptiveThinking(model);
 
   return {
     vendor: 'anthropic',
@@ -65,7 +71,7 @@ export function anthropicDriver(opts: AnthropicDriverOptions = {}): ModelDriver 
             const response = await client.messages.create({
               model,
               max_tokens: maxTokens,
-              thinking: { type: 'adaptive' },
+              ...(thinking ? { thinking: { type: 'adaptive' as const } } : {}),
               system,
               tools: anthropicTools,
               messages,

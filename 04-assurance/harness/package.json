@@ -10,7 +10,7 @@
   },
   "scripts": {
     "selftest": "node src/main.ts",
-    "agents": "node src/run-agents.ts",
+    "agents": "node --env-file-if-exists=../../.env src/run-agents.ts",
     "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },

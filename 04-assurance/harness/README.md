@@ -19,11 +19,17 @@ The probe matrix reproduces every hypothesised phenomenon deterministically: the
 
 **The loop is vendor-neutral and lives in one place.** `agent-loop.ts` owns the task briefing, the tool surface, origin scoping, the transcript and the failure semantics; a `ModelDriver` supplies only a vendor's conversation mechanics. Anything that differed between vendors' harnesses would be a confound, not a finding (methodology §3), so a cross-vendor transcript-parity test asserts that equivalent turns produce identical transcripts. Adding vendor #3 means adding one driver, not one adapter.
 
-| Vendor | Driver | Default model | Live-verified? |
-|---|---|---|---|
-| Anthropic | `providers/anthropic.ts` | `claude-opus-4-8` | yes (exploratory runs) |
-| OpenAI | `providers/openai.ts` | `gpt-5` | **no — needs a smoke run before any round** |
-| Google | `providers/google.ts` | `gemini-3-pro` | **no — needs a smoke run before any round** |
+| Vendor | Driver | Default (smoke tier) | Round tier — pinned by the preregistration | Live-verified? |
+|---|---|---|---|---|
+| Anthropic | `providers/anthropic.ts` | `claude-haiku-4-5` | `claude-opus-4-8` | yes (exploratory runs, frontier tier) |
+| OpenAI | `providers/openai.ts` | `gpt-5-mini` | `gpt-5` | **no — needs a smoke run before any round** |
+| Google | `providers/google.ts` | `gemini-3.5-flash` | `gemini-3-pro` | **no — needs a smoke run before any round** |
+
+**Two tiers, because the harness does two jobs.** A *smoke* run asks whether a driver speaks its vendor's wire protocol; any competent model answers that, so the cheap tier is the default — a frontier model on a smoke run buys nothing and costs real money. A *round* needs the frontier agents methodology §3 requires, pinned and disclosed. Selecting the round tier is explicit (`--model`, or `<VENDOR>_MODEL` in `.env`) and the banner warns that it costs dollars rather than cents.
+
+Behaviour observed on the smoke tier says nothing about how a frontier agent behaves; it is plumbing validation, exactly as the scripted probes are. Every run file records the model, its tier, and whether it came from a flag, `.env`, or the default — a model set in an untracked `.env` is otherwise invisible to whoever later reads the results and wonders why they look like that.
+
+Adaptive thinking is sent only to models that have it (Claude 4.6 and later). The cheap tier predates it and rejects the parameter, so tier and thinking move together — otherwise the default run 400s before it reaches the fixture, and the failure reads exactly like the wire-shape bug the smoke run exists to find.
 
 Methodology §3's ≥3-vendor requirement is met in code. It is not met in evidence until each driver has spoken to its live API.
 
@@ -31,12 +37,24 @@ An adapter that has never spoken to its API is an untested instrument and cannot
 
 `llmAgent({ vendor })` drives an LLM as a web agent through the same `AgentAdapter` interface as the probes. Methodology posture: **neutral tasking** — the agent gets the frozen brief text plus its delegation identity; the system prompt is generic web-agent conduct with nothing fixture-specific. Tool surface: one `http_request` tool scoped to the service origin (off-origin requests are refused and recorded — an injected exfiltration instruction is measurable but cannot leave the machine) and one strict-schema `finish_task` report. Every HTTP call lands in the transcript; hard iteration cap; ending without `finish_task` scores unrecoverable.
 
-```sh
-export ANTHROPIC_API_KEY=...   # or `ant auth login`
-npm run agents -- --build both --tasks T1a,T3,T4,T5,T6
+### Credentials
 
-export OPENAI_API_KEY=...
-npm run agents -- --vendor openai --build both --tasks T1a,T3   # first live run: verify the wire shape
+Keys live in `.env` at the repository root, which is gitignored and must stay that way. `.env.example` records the variable names and no values.
+
+```sh
+cp .env.example .env    # then fill in the keys you hold
+```
+
+`npm run agents` loads it with `node --env-file-if-exists`; no dependency, no secret in the repo, and an exported environment variable still wins if you prefer one. Only the vendor you are running needs a key. The harness checks before it makes a request and names the variable it wanted, so a missing key costs a second rather than four tasks. It prints the variable name it read from, never the value.
+
+CI never sees a key: the unit tests stub every client, so they run offline.
+
+### Runs
+
+```sh
+npm run agents -- --build both --tasks T1a,T3,T4,T5,T6                # anthropic (default)
+npm run agents -- --vendor openai --build both --tasks T1a,T3         # first live run: verify the wire shape
+npm run agents -- --vendor google --build both --tasks T1a,T3         # first live run: verify the wire shape
 ```
 
 **Exploratory only (D-008):** `npm run agents` output is written to `runs/` (gitignored) and stamped exploratory. It is not a benchmark round — no preregistration, no frozen briefs, n=1, single vendor — and must never be published or cited. Unit tests stub the LLM client (no network, no credentials, CI-safe).

@@ -27,7 +27,10 @@
 import OpenAI from 'openai';
 import type { ModelDriver, ModelSession, ModelTurn, ToolSpec, TurnInput } from '../agent-loop.ts';
 
-export const DEFAULT_OPENAI_MODEL = 'gpt-5';
+import { SMOKE_MODELS } from '../models.ts';
+
+/** The cheap tier. A round pins its model explicitly (models.ts). */
+export const DEFAULT_OPENAI_MODEL = SMOKE_MODELS.openai;
 
 type ChatMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
