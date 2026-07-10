@@ -19,9 +19,11 @@ import { test } from 'node:test';
 import { anthropicDriver } from './providers/anthropic.ts';
 import {
   DEFAULT_MODELS,
+  LIVE_SMOKE_RUNS,
   ROUND_MODELS,
   SMOKE_MODELS,
   VENDORS,
+  liveSmokeRunFor,
   resolveModel,
   supportsAdaptiveThinking,
   tierOf,
@@ -117,4 +119,38 @@ test('thinking can be forced off on a model that supports it', async () => {
   const driver = anthropicDriver({ model: ROUND_MODELS.anthropic, thinking: false, client: client as never });
   await driver.begin('s', [], 'hello').next({ kind: 'start' });
   ok(!('thinking' in captured));
+});
+
+test('every live-verified model belongs to the vendor that claims it', () => {
+  // A register that can name any string is not evidence of anything.
+  for (const vendor of VENDORS) {
+    for (const run of LIVE_SMOKE_RUNS[vendor]) {
+      ok(run.model.length > 0, `${vendor} has a nameless run`);
+      ok(/^\d{4}-\d{2}-\d{2}$/.test(run.date), `${vendor}/${run.model}: date must be ISO`);
+      ok(run.correction.length > 0, `${vendor}/${run.model}: say "none" rather than nothing`);
+    }
+  }
+});
+
+test('every default model has now made a live request', () => {
+  // It had not, when this register was written: claude-haiku-4-5 was the
+  // Anthropic default and had never run. The first default run verified it,
+  // and verified the adaptive-thinking gate against the real API rather than
+  // a stub. If a future default is added unverified, this fails — as it should.
+  for (const vendor of VENDORS) {
+    ok(
+      liveSmokeRunFor(vendor, SMOKE_MODELS[vendor]),
+      `${vendor}'s default model has never made a live request; it cannot be the default`,
+    );
+  }
+});
+
+test('a model with no live run is reported as unverified', () => {
+  // gpt-5 and gemini-3-pro are the round models and have never run live. The
+  // register must keep saying so until they do: an untested instrument cannot
+  // produce evidence, and a round pins the round model.
+  strictEqual(liveSmokeRunFor('openai', ROUND_MODELS.openai), undefined);
+  strictEqual(liveSmokeRunFor('google', ROUND_MODELS.google), undefined);
+  strictEqual(liveSmokeRunFor('anthropic', ROUND_MODELS.anthropic)?.model, ROUND_MODELS.anthropic);
+  strictEqual(liveSmokeRunFor('anthropic', 'claude-not-a-model'), undefined);
 });

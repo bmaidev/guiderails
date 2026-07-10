@@ -19,11 +19,19 @@ The probe matrix reproduces every hypothesised phenomenon deterministically: the
 
 **The loop is vendor-neutral and lives in one place.** `agent-loop.ts` owns the task briefing, the tool surface, origin scoping, the transcript and the failure semantics; a `ModelDriver` supplies only a vendor's conversation mechanics. Anything that differed between vendors' harnesses would be a confound, not a finding (methodology §3), so a cross-vendor transcript-parity test asserts that equivalent turns produce identical transcripts. Adding vendor #3 means adding one driver, not one adapter.
 
-| Vendor | Driver | Default (smoke tier) | Round tier — pinned by the preregistration | Live-verified? |
+| Vendor | Driver | Default (smoke tier) | Round tier — pinned by the preregistration | Live-verified model, and when |
 |---|---|---|---|---|
-| Anthropic | `providers/anthropic.ts` | `claude-haiku-4-5` | `claude-opus-4-8` | yes (exploratory runs, frontier tier) |
-| OpenAI | `providers/openai.ts` | `gpt-5-mini` | `gpt-5` | **no — needs a smoke run before any round** |
-| Google | `providers/google.ts` | `gemini-3.5-flash` | `gemini-3-pro` | **no — needs a smoke run before any round** |
+| Anthropic | `providers/anthropic.ts` | `claude-haiku-4-5` — *never run live* | `claude-opus-4-8` | `claude-opus-4-8`, 2026-07-09 — **round model verified** |
+| OpenAI | `providers/openai.ts` | `gpt-5-mini` | `gpt-5` | `gpt-5-mini`, 2026-07-10 — round model **not yet exercised** |
+| Google | `providers/google.ts` | `gemini-3.5-flash` | `gemini-3-pro` | `gemini-3.5-flash`, 2026-07-10 — round model **not yet exercised** |
+
+Note the shape of that table: Anthropic is the only vendor whose *round* model is verified and whose *default* is not. The next `npm run agents` with no `--model` will be `claude-haiku-4-5`'s first live request, and it is the model whose adaptive-thinking gate has only ever been tested against a stub.
+
+**Verification is per model, not per vendor.** `gpt-5-mini` speaking Chat Completions proves the driver works; it proves nothing about whether `gpt-5` accepts the same request. `LIVE_SMOKE_RUNS` in `models.ts` is the register, keyed on the exact model ID, and the run banner tells you which side of it you are on. Methodology §3 pins the *round* model, so the round model is the one that must appear there before a round.
+
+**Corrections found by live contact so far.** Anthropic (2026-07-09): strict tool schemas rejected, because `http_request.body` is deliberately free-form and strict mode forbids that; `strict: true` was dropped from both tools. OpenAI and Google (2026-07-10): none — both wire shapes were accepted as written, including Google's synthesised tool-call ids.
+
+Those two runs found no driver defect and one fixture defect: the conformant build published a step schema describing the *fields* while the endpoint accepted a *request body* wrapping them, so neither model could complete J1 from the declared surface (3.1.1; see `../../03-reference-implementation/conformant/README.md` OI-6). An untested instrument cannot produce evidence — and the first thing this instrument measured was us.
 
 **Two tiers, because the harness does two jobs.** A *smoke* run asks whether a driver speaks its vendor's wire protocol; any competent model answers that, so the cheap tier is the default — a frontier model on a smoke run buys nothing and costs real money. A *round* needs the frontier agents methodology §3 requires, pinned and disclosed. Selecting the round tier is explicit (`--model`, or `<VENDOR>_MODEL` in `.env`) and the banner warns that it costs dollars rather than cents.
 
@@ -31,11 +39,9 @@ Behaviour observed on the smoke tier says nothing about how a frontier agent beh
 
 Adaptive thinking is sent only to models that have it (Claude 4.6 and later). The cheap tier predates it and rejects the parameter, so tier and thinking move together — otherwise the default run 400s before it reaches the fixture, and the failure reads exactly like the wire-shape bug the smoke run exists to find.
 
-Methodology §3's ≥3-vendor requirement is met in code. It is not met in evidence until each driver has spoken to its live API.
+Methodology §3's ≥3-vendor requirement is now met in code **and** in evidence: all three drivers have spoken to their live APIs. It is not met at the round tier until the round model of each has done so.
 
-An adapter that has never spoken to its API is an untested instrument and cannot produce evidence. The OpenAI driver's loop mechanics are covered by stub tests; its wire shape is not.
-
-`llmAgent({ vendor })` drives an LLM as a web agent through the same `AgentAdapter` interface as the probes. Methodology posture: **neutral tasking** — the agent gets the frozen brief text plus its delegation identity; the system prompt is generic web-agent conduct with nothing fixture-specific. Tool surface: one `http_request` tool scoped to the service origin (off-origin requests are refused and recorded — an injected exfiltration instruction is measurable but cannot leave the machine) and one strict-schema `finish_task` report. Every HTTP call lands in the transcript; hard iteration cap; ending without `finish_task` scores unrecoverable.
+`llmAgent({ vendor })` drives an LLM as a web agent through the same `AgentAdapter` interface as the probes. Methodology posture: **neutral tasking** — the agent gets the frozen brief text plus its delegation identity; the system prompt is generic web-agent conduct with nothing fixture-specific. Tool surface: one `http_request` tool scoped to the service origin (off-origin requests are refused and recorded — an injected exfiltration instruction is measurable but cannot leave the machine) and one `finish_task` report. (Neither tool is declared `strict`: `http_request.body` is deliberately free-form, and strict mode forbids that — the correction the first live Anthropic run forced.) Every HTTP call lands in the transcript; hard iteration cap; ending without `finish_task` scores unrecoverable.
 
 ### Credentials
 
@@ -53,8 +59,8 @@ CI never sees a key: the unit tests stub every client, so they run offline.
 
 ```sh
 npm run agents -- --build both --tasks T1a,T3,T4,T5,T6                # anthropic (default)
-npm run agents -- --vendor openai --build both --tasks T1a,T3         # first live run: verify the wire shape
-npm run agents -- --vendor google --build both --tasks T1a,T3         # first live run: verify the wire shape
+npm run agents -- --vendor openai --build both --tasks T1a,T3         # driver live-verified on gpt-5-mini
+npm run agents -- --vendor google --build both --tasks T1a,T3         # driver live-verified on gemini-3.5-flash
 ```
 
 **Exploratory only (D-008):** `npm run agents` output is written to `runs/` (gitignored) and stamped exploratory. It is not a benchmark round — no preregistration, no frozen briefs, n=1, single vendor — and must never be published or cited. Unit tests stub the LLM client (no network, no credentials, CI-safe).
@@ -63,7 +69,7 @@ npm run agents -- --vendor google --build both --tasks T1a,T3         # first li
 
 ## Missing before a real round
 
-Live smoke runs for the OpenAI and Google drivers (an untested instrument cannot produce evidence) · browser/computer-use product agents (the current adapter is an API agentic loop, not a consumer browser product) · T7 interruption mechanics for live agents · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration · parity audit · OD-07 result owner.
+Live runs of each vendor's **round** model — `gpt-5` and `gemini-3-pro` have never made a real request through their drivers (`LIVE_SMOKE_RUNS`, models.ts) · browser/computer-use product agents (the current adapter is an API agentic loop, not a consumer browser product) · T7 interruption mechanics for live agents · n=30 randomised protocol with pinned versions · rubric + dual-adjudication workflow (κ) · preregistration · parity audit · OD-07 result owner.
 
 **All eight task classes are implemented across both builds, and T7 now interrupts for real:** the loop kills the agent's session mid-journey, silently — a real interruption does not announce itself. On the conformant build the principal's work survives (3.4.2: checkpoints are keyed to the principal, not the session) and a new session under the same delegation is offered a resume; on the baseline the journey is discarded (B-10). Success remains correct completion with no duplicate effect, so the contrast shows up as rework rather than failure — report it that way.
 

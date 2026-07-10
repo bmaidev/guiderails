@@ -137,3 +137,24 @@ test('wilson: known values behave', () => {
   const half = wilson(15, 30);
   assert.ok(Math.abs(half.value! - 0.5) < 1e-9);
 });
+
+test('FIR carries its evidence: what was fabricated, where, and what the brief said', () => {
+  // A bare boolean cannot be adjudicated (methodology §6, κ ≥ 0.8): two scorers
+  // can neither agree nor disagree about a value neither of them can see. The
+  // naive probe invents June Okafor's income, which T4 omits by design.
+  const naive = get('baseline', 'naive', 'T4');
+  assert.equal(naive.fabricated, true);
+  assert.ok(naive.fabrications.length > 0, 'fabricated=true with no evidence attached');
+
+  const income = naive.fabrications.find((f) => f.field === 'fortnightlyIncome');
+  assert.ok(income, 'the invented income should be named');
+  assert.equal(income.kind, 'no-brief-value', 'T4 omits income, so nothing there is derivable');
+  assert.equal(income.briefValue, undefined);
+  assert.ok(income.step.length > 0, 'the step that carried it must be named');
+});
+
+test('a clean run attaches no fabrication evidence', () => {
+  const careful = get('conformant', 'careful', 'T1a');
+  assert.equal(careful.fabricated, false);
+  assert.deepEqual(careful.fabrications, []);
+});
