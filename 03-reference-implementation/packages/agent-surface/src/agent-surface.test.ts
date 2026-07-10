@@ -18,6 +18,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formJsonSchema,
+  stepRequestSchema,
   htmlControl,
   validateValues,
   type FieldSpec,
@@ -381,4 +382,47 @@ test('actions default to agent-executable, so the register need only name the ex
     redeemConfirmation: (q) => tokens.redeem(q),
   });
   assert.equal(r.authorised, true);
+});
+
+// ---- 3.1.1: the published schema must describe the request, not just the fields ----
+
+const IDENTITY_FIELDS: FieldSpec[] = [
+  { name: 'fullName', label: 'Full name', dataType: 'text', required: true },
+  { name: 'mobile', label: 'Mobile', dataType: 'text', required: false },
+];
+
+test('a safe step publishes a request body wrapping the values object', () => {
+  const s = stepRequestSchema('j1-identity', 'Identity', IDENTITY_FIELDS) as any;
+  assert.deepEqual(s.required, ['values']);
+  assert.equal(s.additionalProperties, false);
+  // The field schema survives intact, one level down where the endpoint reads it.
+  assert.deepEqual(s.properties.values.required, ['fullName']);
+  assert.equal(s.properties.values.properties.mobile.type, 'string');
+  // A safe step has no action, so no confirmation and nothing to cite.
+  assert.equal(s.properties.confirmation, undefined);
+  assert.equal(s.properties.determinationId, undefined);
+});
+
+test('a consequential step may cite the determination it relied on', () => {
+  const s = stepRequestSchema('j1-submit', 'Submit', IDENTITY_FIELDS, { actionId: 'CA-1' }) as any;
+  assert.equal(s.properties.determinationId.type, 'string');
+  // Q11: citing is possible, not obligatory. The schema must not require it.
+  assert.ok(!s.required.includes('determinationId'));
+});
+
+test('a confirmation-designated step publishes where the token goes', () => {
+  // 5.3.1 designates the checkpoint; without this the checkpoint has no door,
+  // and an agent holding a valid token cannot discover how to present it.
+  const s = stepRequestSchema('j1-submit', 'Submit', IDENTITY_FIELDS, {
+    actionId: 'CA-1', confirmationDesignated: true,
+  }) as any;
+  assert.ok(s.required.includes('confirmation'));
+  assert.deepEqual(s.properties.confirmation.required, ['actionId', 'principalId', 'at', 'token']);
+  assert.equal(s.properties.confirmation.additionalProperties, false);
+});
+
+test('an undesignated consequential step does not demand a confirmation', () => {
+  const s = stepRequestSchema('j2-submit', 'Report', IDENTITY_FIELDS, { actionId: 'CA-2' }) as any;
+  assert.ok(!s.required.includes('confirmation'));
+  assert.equal(s.properties.confirmation, undefined);
 });

@@ -134,7 +134,10 @@ export function fieldJsonSchema(f: FieldSpec): JsonSchema {
   return s;
 }
 
-/** JSON Schema for a whole step/tool input (3.1.1: published input schema). */
+/**
+ * JSON Schema for the *values object* of a step — the field names and their
+ * constraints. This is not the request body: see `stepRequestSchema`.
+ */
 export function formJsonSchema(id: string, title: string, fields: FieldSpec[]): JsonSchema {
   return {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -143,6 +146,78 @@ export function formJsonSchema(id: string, title: string, fields: FieldSpec[]): 
     type: 'object',
     properties: Object.fromEntries(fields.map((f) => [f.name, fieldJsonSchema(f)])),
     required: fields.filter((f) => f.required).map((f) => f.name),
+    additionalProperties: false,
+  };
+}
+
+export interface StepRequestOptions {
+  /** A consequential step; a safe step carries no action and no confirmation. */
+  actionId?: string;
+  /** 5.3.1: the register designates this action as requiring the principal's confirmation. */
+  confirmationDesignated?: boolean;
+}
+
+/**
+ * JSON Schema for the **request body** an agent POSTs to a step endpoint
+ * (3.1.1: declared tool interfaces whose *inputs* are described by published
+ * schemas).
+ *
+ * The field schema alone does not satisfy that criterion, and the gap is not
+ * academic: a schema describing `{declaration}` while the endpoint accepts
+ * `{values: {declaration}}` tells an agent to construct a request the service
+ * rejects, and the 422 it gets back names a field it did in fact supply. Two
+ * frontier models each spent an entire iteration budget on that discrepancy.
+ * If the agent must send it, the published schema says so — including the
+ * confirmation token, which is otherwise a checkpoint with no documented door.
+ */
+export function stepRequestSchema(
+  id: string,
+  title: string,
+  fields: FieldSpec[],
+  opts: StepRequestOptions = {},
+): JsonSchema {
+  const properties: JsonSchema = {
+    values: formJsonSchema(`${id}-values`, `${title} — field values`, fields),
+  };
+  const required = ['values'];
+
+  if (opts.actionId) {
+    // 5.4.1: cite what you relied on. Optional — nothing obliges an agent to
+    // cite a determination (MODEL.md §8 Q11) — but it cannot cite what it was
+    // never told it could send.
+    properties.determinationId = {
+      type: 'string',
+      title: 'Determination relied upon',
+      description:
+        'The determinationId returned by the rules endpoint, if this action relies on one. Presenting it records your reliance in the principal\'s audit (5.4.1) without attributing the query itself (4.5.2).',
+    };
+  }
+
+  if (opts.confirmationDesignated) {
+    properties.confirmation = {
+      type: 'object',
+      title: 'The principal\'s confirmation of this action',
+      description:
+        'Required: this action is confirmation-designated (5.3.1). Present the token your principal obtained through their own channel. An agent cannot mint one, and an interaction inside your own session is not a confirmation (5.3.2).',
+      properties: {
+        actionId: { type: 'string', description: 'The consequential action this confirmation is for.' },
+        principalId: { type: 'string', description: 'The principal the confirmation is attributable to.' },
+        at: { type: 'string', format: 'date-time', description: 'ISO 8601 timestamp.' },
+        token: { type: 'string', description: 'The single-use, service-issued confirmation token.' },
+      },
+      required: ['actionId', 'principalId', 'at', 'token'],
+      additionalProperties: false,
+    };
+    required.push('confirmation');
+  }
+
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $id: id,
+    title: `${title} — request body`,
+    type: 'object',
+    properties,
+    required,
     additionalProperties: false,
   };
 }
