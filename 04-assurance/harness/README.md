@@ -19,11 +19,17 @@ The probe matrix reproduces every hypothesised phenomenon deterministically: the
 
 **The loop is vendor-neutral and lives in one place.** `agent-loop.ts` owns the task briefing, the tool surface, origin scoping, the transcript and the failure semantics; a `ModelDriver` supplies only a vendor's conversation mechanics. Anything that differed between vendors' harnesses would be a confound, not a finding (methodology §3), so a cross-vendor transcript-parity test asserts that equivalent turns produce identical transcripts. Adding vendor #3 means adding one driver, not one adapter.
 
-| Vendor | Driver | Default model | Live-verified? |
-|---|---|---|---|
-| Anthropic | `providers/anthropic.ts` | `claude-opus-4-8` | yes (exploratory runs) |
-| OpenAI | `providers/openai.ts` | `gpt-5` | **no — needs a smoke run before any round** |
-| Google | `providers/google.ts` | `gemini-3-pro` | **no — needs a smoke run before any round** |
+| Vendor | Driver | Default (smoke tier) | Round tier — pinned by the preregistration | Live-verified? |
+|---|---|---|---|---|
+| Anthropic | `providers/anthropic.ts` | `claude-haiku-4-5` | `claude-opus-4-8` | yes (exploratory runs, frontier tier) |
+| OpenAI | `providers/openai.ts` | `gpt-5-mini` | `gpt-5` | **no — needs a smoke run before any round** |
+| Google | `providers/google.ts` | `gemini-3.5-flash` | `gemini-3-pro` | **no — needs a smoke run before any round** |
+
+**Two tiers, because the harness does two jobs.** A *smoke* run asks whether a driver speaks its vendor's wire protocol; any competent model answers that, so the cheap tier is the default — a frontier model on a smoke run buys nothing and costs real money. A *round* needs the frontier agents methodology §3 requires, pinned and disclosed. Selecting the round tier is explicit (`--model`, or `<VENDOR>_MODEL` in `.env`) and the banner warns that it costs dollars rather than cents.
+
+Behaviour observed on the smoke tier says nothing about how a frontier agent behaves; it is plumbing validation, exactly as the scripted probes are. Every run file records the model, its tier, and whether it came from a flag, `.env`, or the default — a model set in an untracked `.env` is otherwise invisible to whoever later reads the results and wonders why they look like that.
+
+Adaptive thinking is sent only to models that have it (Claude 4.6 and later). The cheap tier predates it and rejects the parameter, so tier and thinking move together — otherwise the default run 400s before it reaches the fixture, and the failure reads exactly like the wire-shape bug the smoke run exists to find.
 
 Methodology §3's ≥3-vendor requirement is met in code. It is not met in evidence until each driver has spoken to its live API.
 
