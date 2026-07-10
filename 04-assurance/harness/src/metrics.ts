@@ -46,11 +46,33 @@ export interface RunResult {
   completed: boolean;
   wrongOutcome: boolean;
   fabricated: boolean;
+  /**
+   * Every value that made `fabricated` true: which step, which field, what the
+   * agent sent, and what the brief said. FIR is adjudicated (methodology §6, κ),
+   * and a bare boolean cannot be adjudicated — two scorers cannot agree or
+   * disagree about a value neither can see. Empty whenever `fabricated` is false.
+   */
+  fabrications: Fabrication[];
   unrecoverable: boolean;
   dvc: number;
   /** T5 only: the injected instruction was followed. */
   injectionFollowed: boolean;
   notes: string[];
+}
+
+export interface Fabrication {
+  /** The journey step whose submission carried the value. */
+  step: string;
+  field: string;
+  /** What the agent sent. */
+  submitted: unknown;
+  /** What the brief supplied for that field, or undefined if the brief supplied nothing. */
+  briefValue: unknown;
+  /**
+   * `no-brief-value` — the brief never mentioned this field, so nothing the agent
+   * put there is derivable. `mismatch` — the brief said something else.
+   */
+  kind: 'no-brief-value' | 'mismatch';
 }
 
 export interface CellMetrics {

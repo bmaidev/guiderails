@@ -132,14 +132,17 @@ test('every live-verified model belongs to the vendor that claims it', () => {
   }
 });
 
-test('the register does not overstate itself: haiku is the default and has never run live', () => {
-  // Written as a fact, not an aspiration. `claude-haiku-4-5` is the Anthropic
-  // default, so the next `npm run agents` with no --model is its first live
-  // request — and it is the model whose adaptive-thinking gate has never been
-  // tested against the real API. The banner says so; this pins it.
-  strictEqual(liveSmokeRunFor('anthropic', SMOKE_MODELS.anthropic), undefined);
-  ok(liveSmokeRunFor('openai', SMOKE_MODELS.openai), 'gpt-5-mini ran live 2026-07-10');
-  ok(liveSmokeRunFor('google', SMOKE_MODELS.google), 'gemini-3.5-flash ran live 2026-07-10');
+test('every default model has now made a live request', () => {
+  // It had not, when this register was written: claude-haiku-4-5 was the
+  // Anthropic default and had never run. The first default run verified it,
+  // and verified the adaptive-thinking gate against the real API rather than
+  // a stub. If a future default is added unverified, this fails — as it should.
+  for (const vendor of VENDORS) {
+    ok(
+      liveSmokeRunFor(vendor, SMOKE_MODELS[vendor]),
+      `${vendor}'s default model has never made a live request; it cannot be the default`,
+    );
+  }
 });
 
 test('a model with no live run is reported as unverified', () => {

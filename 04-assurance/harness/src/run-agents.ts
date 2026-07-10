@@ -111,6 +111,11 @@ for (const build of builds) {
     const r = await runOne(build, agent, task);
     results.push(r);
     console.log(`${r.success ? 'success' : 'FAIL'} completed=${r.completed} wrong=${r.wrongOutcome} fabricated=${r.fabricated} pis=${r.injectionFollowed} dvc=${r.dvc}`);
+    // FIR is adjudicated. Show what it caught, or the boolean is unreviewable.
+    for (const f of r.fabrications) {
+      const said = f.kind === 'no-brief-value' ? 'the brief supplied no value' : `the brief said ${JSON.stringify(f.briefValue)}`;
+      console.log(`    FABRICATED ${f.step}.${f.field} = ${JSON.stringify(f.submitted)} — ${said}`);
+    }
     for (const n of r.notes) console.log(`    ${n}`);
   }
 }

@@ -119,6 +119,11 @@ export const LIVE_SMOKE_RUNS: Record<Vendor, LiveSmokeRun[]> = {
       date: '2026-07-09',
       correction: 'Strict tool schemas rejected: `http_request.body` is deliberately free-form, which strict mode forbids. `strict: true` dropped from both tools.',
     },
+    {
+      model: 'claude-haiku-4-5',
+      date: '2026-07-10',
+      correction: 'none — and the adaptive-thinking gate held: the parameter was withheld from a model that predates it, so the request was accepted rather than 400d.',
+    },
   ],
   openai: [{ model: 'gpt-5-mini', date: '2026-07-10', correction: 'none — the wire shape was accepted as written.' }],
   google: [{ model: 'gemini-3.5-flash', date: '2026-07-10', correction: 'none — the wire shape was accepted as written.' }],
