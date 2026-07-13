@@ -1,0 +1,14 @@
+{
+  "//": "For the Storybook/Playwright wrapper files (manager.tsx, preview.ts, test-runner.ts). Requires the Storybook + React + Playwright + test-runner devDependencies, which are NOT installed in the default matrix. Run when the .storybook app is stood up: npm run typecheck:storybook.",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/manager.tsx", "src/preview.ts", "src/test-runner.ts"]
+}
