@@ -169,6 +169,20 @@ test('parity: conformant-only machine surfaces are exactly those declared', asyn
   });
 });
 
+test('parity: CF-availability — conformant distinguishes withdrawn from unknown; baseline cannot', async () => {
+  // 1.4.2 is a conformant-only behaviour. A withdrawn machine surface answers
+  // 410 Gone on the conformant build; the baseline 404s it like any unknown
+  // path, so an agent cannot tell "gone" from "never existed".
+  await withBoth(async (builds) => {
+    const path = '/.well-known/guiderails-v1.json';
+    const conf = await fetch(`${builds.conformant.baseUrl}${path}`);
+    const base = await fetch(`${builds.baseline.baseUrl}${path}`);
+    assert.equal(conf.status, 410, 'conformant: withdrawn is Gone, not Not-Found');
+    assert.equal(((await conf.json()) as any).error.code, 'SURFACE_WITHDRAWN');
+    assert.equal(base.status, 404, 'baseline: no availability semantics');
+  });
+});
+
 test('parity: baseline-only surfaces are exactly those declared', async () => {
   await withBoth(async (builds) => {
   for (const path of BASELINE_ONLY_PATHS) {

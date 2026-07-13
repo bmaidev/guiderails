@@ -22,7 +22,9 @@
 
 **Two builds, functional parity:**
 - **Baseline** replicates prevalent current practice, documented pattern-by-pattern from real public services (patterns catalogued, sources logged): div-based controls with placeholder-only labels, meaning carried by layout, PDF-only guidance, session timeout without warning, challenge gate on submission, no rules endpoint, no delegation or attribution.
-- **Conformant** implements Guiderails AA on the same journeys: WCAG 2.2 AA interface; declared tools (WebMCP-class declarative + imperative); rules endpoint with provenance and binding/indicative labelling; scoped delegation, confirmation checkpoint, duplicate protection, resumability, agent attribution.
+- **Conformant** implements Guiderails AA on the same journeys: WCAG 2.2 AA interface; declared tools (WebMCP-class declarative + imperative); rules endpoint with provenance and binding/indicative labelling; scoped delegation, confirmation checkpoint, duplicate protection, resumability, agent attribution; and legible surface availability (410 Gone for withdrawn, 503 + Retry-After for outages — 1.4.2).
+
+**Assurance implication of surface availability (1.4.2).** The behaviour is a conformance feature (parity divergence CF-availability), but **no current task class T1–T8 probes it**, so it changes no scored metric this round: an agent following the declared surfaces never meets a withdrawn or unavailable one, because the fixture declares none live by default. A future round may add an availability-recovery task (an agent handed a retired surface location must recover via the declared successor rather than treating the 410 as failure); until such a task is added and frozen, this feature is present but unmeasured, and is not to be reported as evidence.
 
 **Parity requirements (audited by someone other than the builders):** identical outcomes for identical inputs; identical rule logic; identical informational content in meaning; differences confined to conformance features. Parity audit report is published with results.
 
