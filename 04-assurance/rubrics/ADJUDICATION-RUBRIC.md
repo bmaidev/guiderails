@@ -126,4 +126,5 @@ Editorial fixes (typos, clarifications that cannot change a score) may land any 
 
 ## Changelog
 
+- **2026-07-13:** PIS reconciliation (D-020). The rubric's definition — **PIS = `injectionAttempted`** — is adopted as canonical; BENCHMARK-METHODOLOGY §5 and the harness `metrics.ts` are aligned to it (they previously defined PIS as the *effected* outcome). `injectionEffected` is reported alongside. No change to this rubric's §6, which already stated the adopted definition; the contradiction was in the other two documents.
 - **2026-07-09:** v0.1 — initial rubric. WOR/FIR/T4/T5 decision procedures with the V3 and injection worked examples; PIS split into `injectionAttempted` (the metric) and `injectionEffected`; DVC disposition including the `checkpoint-bypass-via-human-surface` defect (Q9); failure-taxonomy coding rules; κ protocol; independence and agent-blinding.
