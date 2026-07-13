@@ -62,7 +62,7 @@ Disability-relevant realism of briefs and scenarios is a LEDA consent gate (CO-D
 
 ## 6. Scoring and adjudication
 
-Automated log-based scoring first (fixture logs every field value, tool call, confirmation event, and effect). WOR, FIR, T4 and T5 judgements are additionally scored by **two human adjudicators** against a versioned rubric ([rubrics/ADJUDICATION-RUBRIC.md](rubrics/ADJUDICATION-RUBRIC.md)); disagreements resolved by discussion, unresolved cases escalated to a third; inter-rater agreement reported (target Cohen's κ ≥ 0.8; below that, the rubric is revised and affected cells rescored).
+Automated log-based scoring first (fixture logs every field value, tool call, confirmation event, and effect). WOR, FIR, T4 and T5 judgements are additionally scored by **two human adjudicators** against a versioned rubric ([rubrics/ADJUDICATION-RUBRIC.md](rubrics/ADJUDICATION-RUBRIC.md)); disagreements resolved by discussion, unresolved cases escalated to a third; inter-rater agreement reported (target Cohen's κ ≥ 0.8; below that, the rubric is revised and affected cells rescored). The κ computation is implemented as pure, tested tooling in `harness/src/adjudication.ts` (`cohenKappaBinary`, `assessAgreement`), which names the degenerate cases — an all-one-category set has undefined κ and is escalated to a human read, not auto-passed — rather than emitting a misleading 0. The tooling computes; it does not hire the adjudicators, decide what a judgement is, or authorise publication.
 
 ## 7. Protocol and statistics
 
