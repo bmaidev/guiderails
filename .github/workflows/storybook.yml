@@ -23,7 +23,11 @@ jobs:
         with:
           node-version: 24
       - name: Install
-        run: npm ci
+        # npm install, not npm ci: this toolchain pulls platform-specific native
+        # binaries (esbuild, rollup, playwright) whose optional deps a macOS-
+        # generated lockfile cannot fully enumerate for Linux. Versions stay
+        # pinned in package.json; the fast matrix jobs keep npm ci.
+        run: npm install --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Build Storybook
