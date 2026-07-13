@@ -61,23 +61,47 @@ for (const file of sourceFiles(root + '03-reference-implementation')) {
   });
 }
 
+const demonstratedIds = new Set([...demonstrations.keys()]);
+
+/**
+ * A conditional criterion of the form "Where X.Y.Z is not yet met, …" does not
+ * apply when X.Y.Z *is* met. This is not a new disposition — the criterion is
+ * "gap noted", and the note is the accurate one: not applicable, because a
+ * demonstrated criterion makes its condition false. Read from the criterion's
+ * own words; never asserted, so it cannot be used to hide an unbuilt gap.
+ */
+function inapplicableBecause(c) {
+  const m = /\bWhere (\d\.\d\.\d) is not yet met\b/.exec(c.text);
+  if (m && demonstratedIds.has(m[1])) return m[1];
+  return null;
+}
+
 const records = criteria.map((c) => {
   const shown = demonstrations.get(c.id) ?? [];
+  if (shown.length > 0) {
+    return { criterion: c.id, level: c.level, demonstratedBy: shown, principleTechniques: principleTechniques[c.id[0]] ?? null, gap: null };
+  }
+  const inapplicable = inapplicableBecause(c);
   return {
     criterion: c.id,
     level: c.level,
-    demonstratedBy: shown,
+    demonstratedBy: [],
     principleTechniques: principleTechniques[c.id[0]] ?? null,
-    gap:
-      shown.length > 0
-        ? null
-        : principleTechniques[c.id[0]]
-          ? 'No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test.'
-          : 'No technique demonstrated, and this criterion\'s principle publishes no technique prose at all.',
+    // Still a "gap noted" (definition of done). `applicability` splits an
+    // inapplicable conditional from an unbuilt technique for honest counting.
+    applicability: inapplicable ? 'inapplicable' : 'applicable',
+    inapplicableBecause: inapplicable,
+    gap: inapplicable
+      ? `Not applicable: this criterion applies only where ${inapplicable} is not yet met, and ${inapplicable} is demonstrated, so its condition does not obtain.`
+      : principleTechniques[c.id[0]]
+        ? 'No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test.'
+        : 'No technique demonstrated, and this criterion\'s principle publishes no technique prose at all.',
   };
 });
 
-const mapped = records.filter((r) => !r.gap).length;
+const mapped = records.filter((r) => r.demonstratedBy.length > 0).length;
+const inapplicable = records.filter((r) => r.applicability === 'inapplicable').length;
+const unbuilt = records.length - mapped - inapplicable;
 writeFileSync(
   root + '02-model/techniques/techniques.json',
   JSON.stringify(
@@ -87,11 +111,12 @@ writeFileSync(
       modelVersion: /^\*\*Version ([\d.]+) —/m.exec(model)[1],
       criteria: records.length,
       demonstrated: mapped,
-      gaps: records.length - mapped,
+      gaps: unbuilt,
+      inapplicable,
       records,
     },
     null,
     1,
   ) + '\n',
 );
-console.error(`techniques.json: ${records.length} criteria, ${mapped} demonstrated, ${records.length - mapped} gaps`);
+console.error(`techniques.json: ${records.length} criteria, ${mapped} demonstrated, ${unbuilt} unbuilt gaps, ${inapplicable} inapplicable`);
