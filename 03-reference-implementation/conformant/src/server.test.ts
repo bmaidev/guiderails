@@ -556,3 +556,17 @@ test('5.1.4: the request-channel pointer is confined to scope refusals, not conf
     assert.ok(!body.error.requestAuthority, 'and not at the request channel — a token is not authority');
   } finally { server.close(); }
 });
+
+test('D-021: the schema endpoint emits WebMCP-style annotations from the machine layer', () => {
+  // Dogfooding: the fixture consumes toModelContextTool from agent-surface, the
+  // same serialiser a Storybook story or an AgDS adapter would use.
+  return (async () => {
+    const d = await (await fetch(`${base}/api/journeys/J1/schema`)).json() as any;
+    const submit = d.steps.find((s: any) => s.id === 'submit');
+    const identity = d.steps.find((s: any) => s.id === 'identity');
+    assert.equal(identity.annotations.readOnlyHint, true, 'a safe step is read-only');
+    assert.equal(submit.annotations.destructiveHint, true, 'a consequential step is destructive');
+    assert.equal(submit.annotations.requiresPrincipalConfirmation, true, 'CA-1 is confirmation-designated');
+    assert.equal(submit.annotations.principalOnly, false);
+  })();
+});

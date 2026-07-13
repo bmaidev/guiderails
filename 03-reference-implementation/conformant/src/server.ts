@@ -26,6 +26,7 @@ import { randomUUID } from 'node:crypto';
 import {
   formJsonSchema,
   stepRequestSchema,
+  toModelContextTool,
   validateValues,
   journeyState,
   safeSteps,
@@ -706,6 +707,10 @@ export function createFixtureServer(store: Store): http.Server {
               actionId: s.actionId,
               confirmationDesignated: s.actionId ? CA_REGISTER.find((a) => a.id === s.actionId)?.confirmationDesignated : false,
             }),
+            // WebMCP-style behavioural hints, from the headless machine layer the
+            // adapter packages share (D-021). Dogfooding: the fixture consumes the
+            // same toModelContextTool a Storybook story or an AgDS adapter would.
+            annotations: toModelContextTool(jid, s, j.fields[s.id], s.actionId ? CA_REGISTER.find((a) => a.id === s.actionId) : undefined).annotations,
           })),
         });
       }

@@ -19,3 +19,5 @@ export * from './journey.ts';
 export * from './confirmation.ts';
 export * from './accountability.ts';
 export * from './idempotency.ts';
+export * from './surface.ts';
+export * from './machine-surface.ts';
