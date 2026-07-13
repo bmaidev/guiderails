@@ -1,0 +1,19 @@
+{
+  "name": "@guiderails/storybook-addon",
+  "version": "0.1.0",
+  "description": "Storybook addon: an agent's-eye-view panel and per-story Guiderails criterion checks that fail CI exactly as a11y regressions do. The check engine is renderer-agnostic (works on any rendered DOM) and pure-tested with jsdom; the Storybook panel + Playwright test-runner are the delivery wrapper (D-013, D-021).",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "typecheck:storybook": "tsc --noEmit -p tsconfig.storybook.json"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.0.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.6.0"
+  }
+}
