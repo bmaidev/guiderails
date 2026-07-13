@@ -51,7 +51,7 @@ import { page, form, esc, SERVICE_DESC_PATH } from './html.ts';
  * version of the standard it implements is the repository failing its own
  * dogfooding rule. A test in 07-governance/log-check holds the two together.
  */
-export const MODEL_VERSION = '0.5';
+export const MODEL_VERSION = '0.6';
 
 export const SURFACE_VERSION = '0.2.0';
 export const SURFACE_LAST_MODIFIED = '2026-07-09';
@@ -88,6 +88,9 @@ Agents should use the declared surfaces below rather than driving the human inte
 ## The principal's channel (you cannot use these)
 - Audit record, notifications, and delegation control belong to the principal, not to you. Requests bearing agent identity are refused. Your principal can see every action you take on their behalf, and can suspend or revoke your delegation at any time.
 - Journey J4 gives and withdraws an agent's authority. It is the principal's act alone: no delegation conveys it, and one that named it would not widen what you may do. The consequential-actions register marks those actions agentExecutable:false. Do not attempt them.
+
+## Requesting authority you do not have (5.1.4)
+- If you are refused a consequential action for lack of authority, you may ASK the principal for it: POST to /api/authority-requests with the journeys and actions you need. A request changes nothing and is not a consequential action; the principal grants or denies it. You cannot request authority over delegations themselves (5.1.3).
 
 ## Rules (authoritative)
 - [Eligibility determination](${origin}/api/rules/ssp/determination): POST declared circumstances, receive a determination with its governing reason, legal provenance and binding/indicative status. Authoritative. Do not infer eligibility from prose guidance. The response carries a determinationId: present it with a consequential action so your principal's audit record shows what you relied on.
@@ -163,6 +166,7 @@ function serviceDescription(origin: string): Record<string, unknown> {
     principalChannel: {
       audit: `${origin}/api/audit`,
       notifications: `${origin}/api/notifications`,
+      authorityRequests: `${origin}/api/authority-requests`, // 5.1.4: agent-facing, write-only
       delegations: `${origin}/api/delegations`,
       suspendOrRevoke: `${origin}/api/delegations/{delegationId}/{suspend|revoke|reinstate}`,
       note: 'Revocation is terminal and takes effect before any further consequential action.',
@@ -297,6 +301,8 @@ export function allowedMethodsFor(path: string): string[] | undefined {
     [/^\/api\/journeys\/J[123]\/steps\/[a-z-]+$/, ['POST']],
     [/^\/api\/audit$/, ['GET']],
     [/^\/api\/notifications$/, ['GET']],
+    [/^\/api\/authority-requests$/, ['POST']],
+    [/^\/api\/authority-requests\/req_[A-Za-z0-9-]+$/, ['GET']],
   ];
   return routes.find(([pattern]) => pattern.test(path))?.[1];
 }
@@ -548,6 +554,69 @@ export function createFixtureServer(store: Store): http.Server {
         return json(res, 201, { token: issued.token, actionId: action.id, issuedAt: issued.issuedAt, singleUse: true });
       }
 
+      // ---- 5.1.4: authority requests. Agent-facing and WRITE-ONLY: an agent
+      // that lacks authority asks the principal for it. A request is not a
+      // consequential action — it takes no CA-id, no confirmation, creates no
+      // effect. Granting stays inside the principal-only J4 flow. ----
+      if (req.method === 'POST' && path === '/api/authority-requests') {
+        const agentId = (req.headers['x-agent-id'] as string) ?? '';
+        if (!agentId) {
+          return json(res, 400, { error: { code: 'AGENT_IDENTITY_REQUIRED', message: 'Identify yourself with x-agent-id to request authority.' } });
+        }
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const b = parsed.body as { principalId?: string; journeys?: string[]; actions?: string[]; reason?: string };
+        // The principal is the one the agent's existing delegation names, or the
+        // one it declares (the fixture ids are fictional, D-009).
+        const delegationId = (req.headers['x-delegation-id'] as string) ?? undefined;
+        const principalId = store.delegation(delegationId)?.principalId ?? b.principalId;
+        if (!principalId) {
+          return json(res, 400, { error: { code: 'PRINCIPAL_REQUIRED', message: 'Name the principal you are requesting authority from (principalId), or present a delegation that names them.' } });
+        }
+        const actions = Array.isArray(b.actions) ? b.actions : [];
+        const journeys = Array.isArray(b.journeys) ? b.journeys : [];
+        // 5.1.3: authority over delegations is non-delegable, so a request can
+        // never seek it. Refuse up front, before any record is written.
+        if (actions.some((a) => !(DELEGABLE_ACTIONS as readonly string[]).includes(a) && (a === 'CA-4a' || a === 'CA-4b'))) {
+          return json(res, 403, {
+            error: {
+              code: 'AUTHORITY_NOT_REQUESTABLE',
+              message: 'Authority over delegations is non-delegable (5.1.3): it cannot be granted to an agent through any channel, so it cannot be requested. Only the principal may act on J4.',
+            },
+          });
+        }
+        // Collapse an identical pending request (one record, one notification).
+        const existing = store.findPendingRequest(agentId, journeys, actions);
+        if (existing) {
+          return json(res, 200, { id: existing.id, status: existing.status, deduplicated: true, note: 'An identical request is already pending with the principal.' });
+        }
+        const request: import('./store.ts').AuthorityRequest = {
+          id: `req_${randomUUID()}`,
+          principalId, agentId, delegationId, journeys, actions, reason: b.reason,
+          status: 'pending', at: now(),
+        };
+        store.addAuthorityRequest(request);
+        // Alert the principal. Not a 5.5.2 consequential-action notification —
+        // no effect occurred — but the principal must learn an agent is asking.
+        store.notify(principalId, {
+          at: now(), actionId: 'AUTHORITY-REQUEST', journeyId: 'J4', reference: request.id, agentId,
+          message: `${agentId} has asked for authority to act for you${journeys.length ? ` on ${journeys.join(', ')}` : ''}. Nothing has changed; you can grant or deny this in "Requests to act for you". Ignoring it is not consent.`,
+        });
+        return json(res, 201, {
+          id: request.id, status: 'pending',
+          note: 'Recorded and sent to the principal. This created no effect and granted nothing (5.1.4). Poll GET /api/authority-requests/{id} for the outcome.',
+        });
+      }
+      const arMatch = /^\/api\/authority-requests\/(req_[A-Za-z0-9-]+)$/.exec(path);
+      if (req.method === 'GET' && arMatch) {
+        const request = store.authorityRequest(arMatch[1]);
+        if (!request) return json(res, 404, { error: { code: 'NOT_FOUND', message: 'No such authority request.' } });
+        return json(res, 200, {
+          id: request.id, status: request.status, journeys: request.journeys, actions: request.actions,
+          grantedDelegationId: request.grantedDelegationId, resolvedAt: request.resolvedAt,
+        });
+      }
+
       // ---- Harness instrumentation (not a service surface; methodology §6 log access) ----
       if (req.method === 'GET' && path === '/api/_fixture/claims') {
         return json(res, 200, store.effects);
@@ -769,13 +838,65 @@ export function createFixtureServer(store: Store): http.Server {
         return res.end();
       }
 
-      const j4Match = /^\/journeys\/J4\/steps\/(authority|give|control)$/.exec(path);
+      const j4Match = /^\/journeys\/J4\/steps\/(authority|give|control|requests)$/.exec(path);
       if (j4Match) {
         const stepId = j4Match[1];
         const cookie = req.headers.cookie ?? '';
         const principalId = /(?:^|;\s*)principal=([\w-]+)/.exec(cookie)?.[1];
         if (!principalId) {
           return html(res, 200, page('Sign in to manage your agents', `<p>Giving or withdrawing an agent's authority is something only you can do. Sign in to continue.</p>${signInForm()}`));
+        }
+
+        // 5.1.4: the principal reviews agents' requests to act for them. Reading
+        // is a safe step; granting routes through the give flow (CA-4a).
+        if (stepId === 'requests') {
+          if (req.method === 'GET') {
+            const pending = store.authorityRequestsFor(principalId).filter((r) => r.status === 'pending');
+            const rows = pending.length === 0
+              ? '<p>No agent has asked for authority to act for you.</p>'
+              : `<table><caption>Requests to act for you</caption><thead><tr><th scope="col">Request</th><th scope="col">Agent</th><th scope="col">Journeys</th><th scope="col">Actions</th><th scope="col">Reason</th></tr></thead><tbody>${
+                  pending.map((r) => `<tr><td>${esc(r.id)}</td><td>${esc(r.agentId)}</td><td>${esc(r.journeys.join(', '))}</td><td>${esc(r.actions.join(', '))}</td><td>${esc(r.reason ?? '')}</td></tr>`).join('')
+                }</tbody></table>`;
+            return html(res, 200, page('Requests to act for you', `${rows}
+<p>An agent asked; nothing has changed. You decide.</p>${form(path, J4_FIELDS.requests, {}, [], 'Apply decision')}`));
+          }
+          if (req.method === 'POST') {
+            const raw = Object.fromEntries(new URLSearchParams(await readBody(req)));
+            const errors = validateValues(J4_FIELDS.requests, raw);
+            if (errors.length > 0) return html(res, 422, page('Requests to act for you', form(path, J4_FIELDS.requests, raw, errors, 'Apply decision')));
+            const request = store.authorityRequest(String(raw.requestId));
+            if (!request || request.principalId !== principalId || request.status !== 'pending') {
+              return html(res, 422, page('Requests to act for you', `${errorSummaryFor('requestId', 'No pending request of yours has that reference.', 'Check the reference in the list above.')}${form(path, J4_FIELDS.requests, raw, [], 'Apply decision')}`));
+            }
+            if (String(raw.decision) === 'deny') {
+              request.status = 'denied';
+              request.resolvedAt = now();
+              return html(res, 200, page('Request denied', `<p>You denied ${esc(request.agentId)}'s request. Nothing changed.</p><p><a href="/journeys/J4/steps/requests">Back to requests</a></p>`));
+            }
+            // Grant: issue a delegation scoped to exactly what was asked — the same
+            // effect as the give flow (CA-4a), so the register path is unchanged.
+            if (!String(raw.validTo)) {
+              return html(res, 422, page('Requests to act for you', `${errorSummaryFor('validTo', 'Choose an end date to grant authority.', 'Authority must end (5.1.2).')}${form(path, J4_FIELDS.requests, raw, [], 'Apply decision')}`));
+            }
+            if (request.actions.some((a) => !(DELEGABLE_ACTIONS as readonly string[]).includes(a))) {
+              // Unreachable via the request endpoint (it refuses non-delegable up
+              // front), but the invariant is guarded here too (5.1.3).
+              return json(res, 400, { error: { code: 'ACTION_NOT_DELEGABLE', message: 'The power to give or withdraw authority cannot itself be granted.' } });
+            }
+            const delegationId = store.nextReference('DLG-');
+            store.addDelegation({
+              id: delegationId, principalId, agentId: request.agentId,
+              scope: { journeys: request.journeys, actions: request.actions },
+              validFrom: now(), validTo: `${String(raw.validTo)}T23:59:59Z`, status: 'active',
+            });
+            const reference = store.nextReference(REFERENCE_PREFIX['CA-4a']);
+            store.effects.push({ journeyId: 'J4', actionId: 'CA-4a', reference, principalId, values: { grantedRequest: request.id, agentId: request.agentId }, at: now(), attribution: { agentOriginated: false } });
+            store.notify(principalId, { at: now(), actionId: 'CA-4a', journeyId: 'J4', reference, message: `You granted ${request.agentId} the authority it requested (${delegationId}). You can suspend or revoke it at any time.` });
+            request.status = 'granted';
+            request.resolvedAt = now();
+            request.grantedDelegationId = delegationId;
+            return html(res, 201, page('Authority granted', `<p>${esc(request.agentId)} may now act for you as it asked, until ${esc(String(raw.validTo))}.</p><p>Authority <strong>${esc(delegationId)}</strong>.</p><p><a href="/journeys/J4/steps/requests">Back to requests</a></p>`));
+          }
         }
 
         if (req.method === 'GET') {
@@ -787,7 +908,7 @@ export function createFixtureServer(store: Store): http.Server {
                   list.map((d) => `<tr><td>${esc(d.id)}</td><td>${esc(d.agentId)}</td><td>${esc(d.scope.journeys.join(', '))}</td><td>${esc(d.scope.actions.join(', '))}</td><td>${esc(d.validTo.slice(0, 10))}</td><td>${esc(d.status)}</td></tr>`).join('')
                 }</tbody></table>`;
             return html(res, 200, page('Agents acting for you', `${rows}
-<p>You can <a href="/journeys/J4/steps/give">give an agent authority</a>, or <a href="/journeys/J4/steps/control">suspend, revoke or reinstate</a> authority you have already given.</p>
+<p>You can <a href="/journeys/J4/steps/give">give an agent authority</a>, review <a href="/journeys/J4/steps/requests">requests to act for you</a>, or <a href="/journeys/J4/steps/control">suspend, revoke or reinstate</a> authority you have already given.</p>
 <p>No agent can perform either of those things — not even one you have given wide authority. Revoking is permanent and takes effect before your agent's next action.</p>`));
           }
           return html(res, 200, page(stepId === 'give' ? 'Give an agent authority' : 'Suspend, revoke or reinstate authority',
@@ -1011,6 +1132,10 @@ function executeConsequential(
     });
     if (!result.authorised) {
       store.record({ at, sessionId: sid, type: 'rejection', detail: { actionId: action.id, ...result.reason } });
+      // 5.1.4: a refusal for lack of authority points at where authority is
+      // requested — but NOT for a principal-only action, which no request can
+      // convey (5.1.3). A confirmation refusal points at the confirmation channel.
+      const SCOPE_REFUSALS = new Set(['DELEGATION_MISSING', 'SCOPE_JOURNEY', 'SCOPE_ACTION', 'AGENT_MISMATCH']);
       const body = {
         error: {
           ...result.reason,
@@ -1018,6 +1143,9 @@ function executeConsequential(
           // on is half a rejection. Tell it where a confirmation comes from.
           ...(result.reason.code.startsWith('CONFIRMATION')
             ? { confirmationChannel: '/api/confirmations', obtainedBy: 'the principal, not the agent' }
+            : {}),
+          ...(SCOPE_REFUSALS.has(result.reason.code)
+            ? { requestAuthority: '/api/authority-requests', note: 'You lack authority for this action. You may request it from the principal here; a request is not itself a consequential action (5.1.4).' }
             : {}),
         },
       };

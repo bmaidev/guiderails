@@ -1,8 +1,8 @@
 # Guiderails — the standard
 
-**Version 0.5 — 9 July 2026.** Supersedes the v0.1 skeleton (retained as MODEL-SKELETON.md for history). Numbering from v0.1 is stable; v0.2 added guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 and their criteria; v0.3 added criterion 1.1.4 (D-014); v0.4 added criterion 5.3.2 (D-015); v0.5 adds criteria 5.1.3 and 5.3.3 (D-016).
+**Version 0.6 — 13 July 2026.** Supersedes the v0.1 skeleton (retained as MODEL-SKELETON.md for history). Numbering from v0.1 is stable; v0.2 added guidelines 1.4, 1.5, 2.5, 2.6, 3.4, 3.5, 4.4, 4.5, 5.5, 5.6 and their criteria; v0.3 added criterion 1.1.4 (D-014); v0.4 added criterion 5.3.2 (D-015); v0.5 added criteria 5.1.3 and 5.3.3 (D-016); v0.6 adds criterion 5.1.4 (D-019).
 
-**Contents:** §1 architecture · §2 normative language · §3 definitions · §4 conformance model · §5 the five principles and 55 success criteria · §6 instrument mapping · §7 assurance · §8 change log and open questions.
+**Contents:** §1 architecture · §2 normative language · §3 definitions · §4 conformance model · §5 the five principles and 56 success criteria · §6 instrument mapping · §7 assurance · §8 change log and open questions.
 
 ---
 
@@ -40,6 +40,10 @@ Added in v0.5:
 
 - **Principal-only action** — a consequential action the service executes only on the principal's own request, and never on an agent's, whatever delegation the agent presents. Designation as principal-only is part of the consequential-actions register (5.3.3).
 - **Non-delegable authority** — authority that a delegation cannot convey, whatever its terms. Authority over delegations themselves is non-delegable (5.1.3).
+
+Added in v0.6:
+
+- **Authority request** — a message from an agent to a principal asking to be granted authority the agent does not hold. It binds the principal to nothing, changes no state the principal is accountable for, and is not a consequential action; the principal remains free to ignore it. Distinct from a delegation (which conveys authority) and from a consequential action (which creates an effect).
 
 ## 4. Conformance model
 
@@ -172,6 +176,7 @@ Added in v0.5:
 - **5.1.1 (A)** The service rejects, safely and with a programmatically legible reason, any consequential action attempted without a valid delegation naming the principal and scoping the action.
 - **5.1.2 (AA)** Delegations are scoped to journeys and consequential actions, time-bounded, and revocable by the principal through a journey that itself conforms at Level A.
 - **5.1.3 (A)** Authority over delegations is **non-delegable**. No delegation conveys authority to create, widen, extend the duration of, or reinstate a delegation, nor to suspend or revoke a delegation held by another agent; a delegation purporting to convey any of these does not convey it, and remains valid as to the rest of its scope. The service MAY permit an agent to relinquish a delegation it holds. Nothing in this criterion limits the principal's own control under 5.5.1.
+- **5.1.4 (AA)** Where an agent lacks the authority to complete a consequential action on an essential journey, the service provides a machine surface through which the agent may request that authority from the principal, and the principal grants or denies the request through a journey that itself conforms at Level A. An **authority request** creates no legal or administrative effect and is not a consequential action; the service does not treat an unanswered or ignored request as consent, and does not convey through a request any authority that 5.1.3 makes non-delegable.
 
 **Guideline 5.2 — Attribution.**
 - **5.2.1 (A)** Agent-originated submissions are flagged as such in service records, without degrading the service provided.
@@ -228,6 +233,8 @@ Conformance at AA and above requires benchmark evidence produced under [../04-as
 **2026-07-09:** project renamed Kerbcut → Guiderails (D-002); no normative changes.
 
 **v0.3 → v0.4 (2026-07-09):** added criterion **5.3.2 (A)** — only a principal-attributable confirmation satisfies a designated consequential action; a service that cannot verify attribution does not execute (D-015). New definitions: agent-driven session, principal-attributable confirmation, confirmation token. Q9 resolved and closed; the undeclared-agent residual is now a documented limitation; Q10 opened (agent attestation). Totals: 53 criteria (20 A, 27 AA, 6 AAA). 5.3.1 is unchanged and unrenumbered; 5.3.2 strengthens it, so prime directive 3 does not apply. Assurance implication: T6 now tests a checkpoint the agent cannot satisfy on any surface — the fixture's confirmation tokens are issued to the principal out-of-band.
+
+**v0.5 → v0.6 (2026-07-13):** added criterion **5.1.4 (AA)** — where an agent lacks authority for a consequential action on an essential journey, the service provides a machine surface through which the agent requests that authority, and the principal grants or denies it through a Level-A-conforming journey; an authority request creates no effect, is not a consequential action, and is never treated as consent (D-019). New definition: authority request. Totals: 56 criteria (22 A, 28 AA, 6 AAA). Nothing renumbered; 5.1.4 is the companion to 5.1.1's refusal — the standard's first criterion about how an agent *obtains* authority rather than how the service refuses it — and it adds an operability path without touching any Level A criterion, so prime directive 3 does not apply. It expressly cannot convey what 5.1.3 makes non-delegable. Assurance implication (BENCHMARK-METHODOLOGY): the conformant build exposes `/api/authority-requests` and a principal-only J4 review step; a scope-refused action now points the agent at the request channel. No current task class scores it; a future round may add a request-and-escalate task.
 
 **v0.4 → v0.5 (2026-07-09):** added criteria **5.1.3 (A)** — authority over delegations is non-delegable — and **5.3.3 (A)** — the consequential-actions register designates principal-only actions, and the service refuses them to any agent before evaluating the delegation presented (D-016). New definitions: principal-only action, non-delegable authority. Q12 resolved and closed; Q11 recorded as an open question, having previously been cited by implementation documents without ever being written down here. Totals: 55 criteria (22 A, 27 AA, 6 AAA). 5.1.2, 5.3.1 and 5.5.1 are unchanged and unrenumbered; the new criteria constrain what a delegation can convey rather than weakening any of them, so prime directive 3 does not apply. Assurance implication: the reference implementation's conformant build marks CA-4a and CA-4b principal-only and publishes J4 as the principal's own journey; a delegation naming either action is refused before it is read, and the baseline has no register at all.
 

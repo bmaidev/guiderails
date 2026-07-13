@@ -30,6 +30,28 @@ export interface DraftState {
   consequentialEvents: ConsequentialEvent[];
 }
 
+/**
+ * 5.1.4: a request from an agent to a principal for authority the agent lacks.
+ * It is NOT a consequential action — it takes no CA-id, no confirmation, and
+ * creates no effect. Its only footprint is this pending record plus a
+ * notification to the principal, who grants or denies it through J4.
+ */
+export interface AuthorityRequest {
+  id: string;
+  principalId: string;
+  agentId: string;
+  /** The delegation the agent already holds, if any (the request seeks to widen it). */
+  delegationId?: string;
+  journeys: string[];
+  actions: string[];
+  reason?: string;
+  status: 'pending' | 'granted' | 'denied';
+  at: string;
+  resolvedAt?: string;
+  /** Set when granted: the new delegation the principal issued. */
+  grantedDelegationId?: string;
+}
+
 /** 1.4.2: a temporarily-unavailable machine surface. */
 export interface Outage {
   /** Seconds until the surface is expected back (the Retry-After value). */
@@ -114,6 +136,26 @@ export class Store {
   }
   outageFor(path: string): Outage | undefined {
     return this.outages.get(path);
+  }
+
+  /** 5.1.4: authority requests, keyed by id. A request creates no effect. */
+  private readonly authorityRequests = new Map<string, AuthorityRequest>();
+  addAuthorityRequest(r: AuthorityRequest): void {
+    this.authorityRequests.set(r.id, r);
+  }
+  authorityRequest(id: string): AuthorityRequest | undefined {
+    return this.authorityRequests.get(id);
+  }
+  authorityRequestsFor(principalId: string): AuthorityRequest[] {
+    return [...this.authorityRequests.values()].filter((r) => r.principalId === principalId);
+  }
+  /** Collapse an identical pending request from the same agent for the same scope. */
+  findPendingRequest(agentId: string, journeys: string[], actions: string[]): AuthorityRequest | undefined {
+    const key = (js: string[], as: string[]) => `${[...js].sort().join(',')}|${[...as].sort().join(',')}`;
+    const want = key(journeys, actions);
+    return [...this.authorityRequests.values()].find(
+      (r) => r.status === 'pending' && r.agentId === agentId && key(r.journeys, r.actions) === want,
+    );
   }
   private readonly sessions = new Map<string, Map<string, DraftState>>();
   private readonly delegations = new Map<string, Delegation>();
