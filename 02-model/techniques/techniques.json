@@ -106,6 +106,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": null,
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated, and this criterion's principle publishes no technique prose at all."
   },
   {
@@ -133,6 +135,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": null,
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated, and this criterion's principle publishes no technique prose at all."
   },
   {
@@ -192,6 +196,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -199,6 +205,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -206,6 +214,8 @@
    "level": "AAA",
    "demonstratedBy": [],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -253,6 +263,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -260,6 +272,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -323,6 +337,8 @@
    "level": "AAA",
    "demonstratedBy": [],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -330,6 +346,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -337,6 +355,8 @@
    "level": "A",
    "demonstratedBy": [],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -344,6 +364,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -411,6 +433,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -418,6 +442,8 @@
    "level": "AAA",
    "demonstratedBy": [],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -437,7 +463,9 @@
    "level": "A",
    "demonstratedBy": [],
    "principleTechniques": "OpenFisca-class engines; GovCMS Rules-as-Code capability; legislation identifiers in changelogs.",
-   "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
+   "applicability": "inapplicable",
+   "inapplicableBecause": "4.1.1",
+   "gap": "Not applicable: this criterion applies only where 4.1.1 is not yet met, and 4.1.1 is demonstrated, so its condition does not obtain."
   },
   {
    "criterion": "4.2.1",
@@ -460,6 +488,8 @@
    "level": "AAA",
    "demonstratedBy": [],
    "principleTechniques": "OpenFisca-class engines; GovCMS Rules-as-Code capability; legislation identifiers in changelogs.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -479,6 +509,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "OpenFisca-class engines; GovCMS Rules-as-Code capability; legislation identifiers in changelogs.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -486,6 +518,8 @@
    "level": "AAA",
    "demonstratedBy": [],
    "principleTechniques": "OpenFisca-class engines; GovCMS Rules-as-Code capability; legislation identifiers in changelogs.",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -729,6 +763,8 @@
    "level": "AAA",
    "demonstratedBy": [],
    "principleTechniques": "determination citation at the point of action (the service issues an opaque `determinationId` carrying no principal; the agent presents it with the consequential action, so the audit shows reliance without attributing the query — Q11); OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; single-use confirmation tokens issued to the principal's nominated channel (5.5.2); notification via existing secure inboxes; content provenance marking; a principal-only flag published in the register, evaluated before the delegation is read, so a conformant agent is warned off before it tries and a refusal never leaks whether the delegation would otherwise have sufficed (5.3.3).",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {
@@ -736,6 +772,8 @@
    "level": "AA",
    "demonstratedBy": [],
    "principleTechniques": "determination citation at the point of action (the service issues an opaque `determinationId` carrying no principal; the agent presents it with the consequential action, so the audit shows reliance without attributing the query — Q11); OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; single-use confirmation tokens issued to the principal's nominated channel (5.5.2); notification via existing secure inboxes; content provenance marking; a principal-only flag published in the register, evaluated before the delegation is read, so a conformant agent is warned off before it tries and a refusal never leaks whether the delegation would otherwise have sufficed (5.3.3).",
+   "applicability": "applicable",
+   "inapplicableBecause": null,
    "gap": "No technique demonstrated in the reference implementation. The principle names candidate techniques; none is mapped to this criterion, and none is exercised by a test."
   },
   {

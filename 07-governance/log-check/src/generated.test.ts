@@ -84,7 +84,7 @@ test('techniques.json is regenerated, not hand-edited', () => {
   strictEqual(rebuilt.criteria, parseCriteria(MODEL).length);
   // A demonstration must point at a file that cites the criterion. The build
   // derives them from source, so a hand-written claim cannot survive a rebuild.
-  ok(rebuilt.demonstrated + rebuilt.gaps === rebuilt.criteria);
+  ok(rebuilt.demonstrated + rebuilt.gaps + rebuilt.inapplicable === rebuilt.criteria);
 });
 
 test('a criterion demonstrated in code names a file that exists', () => {
@@ -141,4 +141,26 @@ test('the claim format stays Proposed until the steward decides it', () => {
     read('07-governance/CONFORMANCE-CLAIM.md').includes('**Status: PROPOSED'),
     'the format document must say it binds nothing yet',
   );
+});
+
+test('an inapplicable criterion is a justified gap note, never a way to hide an unbuilt one', () => {
+  // "Inapplicable" is not a third disposition — it is a "gap noted" whose note
+  // is accurate. It is legitimate ONLY when the criterion's own text conditions
+  // it on another criterion that is demonstrated. The generator reads this from
+  // the criterion wording; this test refuses any inapplicable record that does
+  // not name a genuinely-demonstrated criterion, so it cannot launder a gap.
+  const techniques = JSON.parse(read('02-model/techniques/techniques.json'));
+  const demonstrated = new Set(
+    techniques.records.filter((r: { demonstratedBy: unknown[] }) => r.demonstratedBy.length > 0).map((r: { criterion: string }) => r.criterion),
+  );
+  const model = read('02-model/MODEL.md');
+  for (const record of techniques.records) {
+    if (record.applicability !== 'inapplicable') continue;
+    ok(record.gap, `inapplicable ${record.criterion} must still carry a gap note (definition of done)`);
+    ok(record.inapplicableBecause, `inapplicable ${record.criterion} must name the criterion that makes it so`);
+    ok(demonstrated.has(record.inapplicableBecause), `${record.criterion} claims inapplicability via ${record.inapplicableBecause}, which is NOT demonstrated`);
+    // And the claim must be readable in the criterion's own text, not asserted.
+    const line = new RegExp(`\\*\\*${record.criterion.replace(/\./g, '\\.')} .*Where ${record.inapplicableBecause.replace(/\./g, '\\.')} is not yet met`).test(model);
+    ok(line, `${record.criterion}'s own text must condition it on ${record.inapplicableBecause}`);
+  }
 });
