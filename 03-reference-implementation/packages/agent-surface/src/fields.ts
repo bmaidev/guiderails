@@ -80,7 +80,7 @@ export interface FieldError {
   remediation: string;
 }
 
-type JsonSchema = Record<string, unknown>;
+export type JsonSchema = Record<string, unknown>;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
