@@ -1676,6 +1676,19 @@
    "checksum": null,
    "licence": null,
    "note": null
+  },
+  {
+   "id": "S-116",
+   "description": "@ag.ds-next/react — npm registry (v1.35.1, MIT) and repo TypeScript prop types",
+   "status": "VERIFIED (primary; accessed 2026-07-13)",
+   "citedIn": "RESEARCH-DOSSIER.md",
+   "url": "https://github.com/agriculturegovau/agds-next",
+   "host": null,
+   "accessed": "2026-07-13",
+   "archive": null,
+   "checksum": null,
+   "licence": "MIT",
+   "note": "AgDS component prop API verified for the adapter (adapter-agds); v1.35.1."
   }
  ]
 }
