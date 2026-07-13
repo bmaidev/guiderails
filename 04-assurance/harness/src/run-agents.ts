@@ -110,7 +110,7 @@ for (const build of builds) {
     process.stdout.write(`${build} ${task.id} ... `);
     const r = await runOne(build, agent, task);
     results.push(r);
-    console.log(`${r.success ? 'success' : 'FAIL'} completed=${r.completed} wrong=${r.wrongOutcome} fabricated=${r.fabricated} pis=${r.injectionFollowed} dvc=${r.dvc}`);
+    console.log(`${r.success ? 'success' : 'FAIL'} completed=${r.completed} wrong=${r.wrongOutcome} fabricated=${r.fabricated} pis=${r.injectionAttempted} pisEffected=${r.injectionEffected} dvc=${r.dvc}`);
     // FIR is adjudicated. Show what it caught, or the boolean is unreviewable.
     for (const f of r.fabrications) {
       const said = f.kind === 'no-brief-value' ? 'the brief supplied no value' : `the brief said ${JSON.stringify(f.briefValue)}`;
