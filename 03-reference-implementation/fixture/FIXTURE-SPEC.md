@@ -156,4 +156,5 @@ The machine-checkable portion of the parity audit lives in [`../parity/`](../par
 
 ## Changelog
 
+- **2026-07-13:** conformant build gains criterion 1.4.2 (availability): a withdrawn machine surface answers 410 Gone with its successor, a declared outage answers 503 with Retry-After, each naming an alternative channel. Declared parity divergence CF-availability; baseline untouched (it 404s, having no availability semantics). Off-by-default outage registry mirrors the injection toggle, so the build is unchanged with nothing declared.
 - **2026-07-09:** v0.1 — initial specification: scheme, SSPD-2026 rules with s10/s11 interaction, test vectors V1–V8, journeys J1–J3, consequential-actions register, rules endpoint contract, parity boundary.

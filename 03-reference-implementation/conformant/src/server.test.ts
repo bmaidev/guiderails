@@ -383,3 +383,54 @@ test('a value misplaced inside values is named, not stored (additionalProperties
   assert.equal(unknown.constraint, 'unknown');
   assert.match(unknown.remediation, /beside "values"/);
 });
+
+test('1.4.2: a withdrawn surface answers 410 Gone, not 404', async () => {
+  // An agent that finds a retired surface must learn it is gone, with its
+  // successor — not that it never existed (which invites a wrong retry).
+  const r = await fetch(`${base}/.well-known/guiderails-v1.json`);
+  assert.equal(r.status, 410);
+  assert.equal(r.headers.get('retry-after'), null, 'a withdrawn surface is permanent, so no Retry-After');
+  const body = await r.json() as any;
+  assert.equal(body.error.code, 'SURFACE_WITHDRAWN');
+  assert.ok(body.error.supersededBy.endsWith('/.well-known/guiderails.json'));
+  assert.ok(body.error.alternative.serviceDescription, 'an alternative channel must be named');
+});
+
+test('1.4.2: withdrawal applies to every method, and pre-empts routing', async () => {
+  const post = await fetch(`${base}/.well-known/guiderails-v1.json`, { method: 'POST' });
+  assert.equal(post.status, 410, 'withdrawal is method-independent');
+});
+
+test('1.4.2: a declared outage answers 503 with Retry-After, and lifting it restores service', async () => {
+  const path = '/api/rules/ssp/changelog';
+  assert.equal((await fetch(`${base}${path}`)).status, 200, 'live before the outage');
+
+  store.declareOutage(path, { retryAfterSeconds: 120, reason: 'Planned maintenance' });
+  const down = await fetch(`${base}${path}`);
+  assert.equal(down.status, 503);
+  assert.equal(down.headers.get('retry-after'), '120', 'temporary unavailability is retryable');
+  const body = await down.json() as any;
+  assert.equal(body.error.code, 'SURFACE_UNAVAILABLE');
+  assert.equal(body.error.retryAfterSeconds, 120);
+  assert.ok(body.error.alternative.serviceDescription);
+
+  store.clearOutage(path);
+  assert.equal((await fetch(`${base}${path}`)).status, 200, 'lifting the outage proves it was temporary');
+});
+
+test('1.4.2: surfaceStatusFor is a pure sibling of allowedMethodsFor', async () => {
+  const { surfaceStatusFor, WITHDRAWN_SURFACES } = await import('./server.ts');
+  const s = new Store();
+  assert.equal(surfaceStatusFor('/api/journeys/J1/schema', s), undefined, 'a live surface has no status');
+  assert.equal(surfaceStatusFor('/.well-known/guiderails-v1.json', s)!.state, 'withdrawn');
+  s.declareOutage('/x', { retryAfterSeconds: 5 });
+  assert.equal(surfaceStatusFor('/x', s)!.state, 'unavailable');
+  assert.ok(Object.keys(WITHDRAWN_SURFACES).length >= 1);
+});
+
+test('1.4.2: withdrawn surfaces are declared in the service description (1.1.3, no surprise 410)', async () => {
+  const d = await (await fetch(`${base}${SERVICE_DESC_PATH}`)).json() as any;
+  assert.ok(d.availability, 'the description must declare availability');
+  const retired = d.availability.retiredSurfaces.map((r: any) => r.path);
+  assert.ok(retired.includes('/.well-known/guiderails-v1.json'), 'the 410 path must be discoverable');
+});

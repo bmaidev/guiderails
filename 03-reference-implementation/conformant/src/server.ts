@@ -141,6 +141,12 @@ function serviceDescription(origin: string): Record<string, unknown> {
       serviceDescription: `${origin}${SERVICE_DESC_PATH}`,
       linkRelation: 'service-desc',
     },
+    // 1.4.2 / 1.1.3: withdrawn surfaces are declared, so a 410 is discoverable
+    // rather than a surprise, and no discovery surface points at a dead path.
+    availability: {
+      statusNote: 'A withdrawn machine surface answers 410 Gone with its successor; a temporarily unavailable one answers 503 with Retry-After.',
+      retiredSurfaces: Object.entries(WITHDRAWN_SURFACES).map(([path, w]) => ({ path, supersededBy: `${origin}${w.supersededBy}` })),
+    },
     sessionTimeLimit: { minutes: SESSION_TIME_LIMIT_MINUTES, dataLossOnExpiry: false, recovery: 'Drafts are resumable for the declared period (3.4.2).' }, // 2.6.1
     // 3.4.2: an interrupted journey is resumable by the principal's delegate
     resumability: {
@@ -295,6 +301,47 @@ export function allowedMethodsFor(path: string): string[] | undefined {
   return routes.find(([pattern]) => pattern.test(path))?.[1];
 }
 
+/**
+ * 1.4.2: machine surfaces the service has permanently withdrawn. Static and
+ * fictional (D-009): a versioned service retires old surface locations, and an
+ * agent that finds one must learn it is *gone*, not that it never existed.
+ * `supersededBy` names where the capability lives now.
+ */
+export const WITHDRAWN_SURFACES: Record<string, { supersededBy: string; note: string }> = {
+  '/.well-known/guiderails-v1.json': {
+    supersededBy: SERVICE_DESC_PATH,
+    note: 'The v1 service-description location. Superseded; the current description is a machine surface at the path below.',
+  },
+};
+
+export type SurfaceStatus =
+  | { state: 'withdrawn'; supersededBy: string; note: string }
+  | { state: 'unavailable'; retryAfterSeconds: number; until?: string; reason?: string };
+
+/**
+ * The availability of a machine surface, or undefined if it is live. The true
+ * sibling of allowedMethodsFor: a pure lookup an agent's response is built from.
+ * Withdrawn beats outage — a permanently gone surface is not "back soon".
+ */
+export function surfaceStatusFor(path: string, store: Store): SurfaceStatus | undefined {
+  const withdrawn = WITHDRAWN_SURFACES[path];
+  if (withdrawn) return { state: 'withdrawn', ...withdrawn };
+  const outage = store.outageFor(path);
+  if (outage) {
+    return { state: 'unavailable', retryAfterSeconds: outage.retryAfterSeconds ?? 300, until: outage.until, reason: outage.reason };
+  }
+  return undefined;
+}
+
+/** The channels an agent can fall back to when a surface is gone or down (1.4.2). */
+function alternativeChannel(origin: string): Record<string, string> {
+  return {
+    serviceDescription: `${origin}${SERVICE_DESC_PATH}`,
+    agentDiscoveryFile: `${origin}/llms.txt`,
+    humanEntryPoint: `${origin}/journeys/J1/steps/identity`,
+  };
+}
+
 function getSession(req: http.IncomingMessage, res: http.ServerResponse, store: Store): string {
   const cookie = req.headers.cookie ?? '';
   const match = /(?:^|;\s*)sid=([A-Za-z0-9-]+)/.exec(cookie);
@@ -359,6 +406,33 @@ export function createFixtureServer(store: Store): http.Server {
     const origin = `http://${req.headers.host ?? 'localhost'}`;
 
     try {
+      // ---- 1.4.2: availability. Pre-empts routing so a withdrawn or unavailable
+      // surface never runs its handler, and answers legibly for every method:
+      // 410 Gone (permanent, do not retry) vs 503 + Retry-After (temporary). ----
+      const status = surfaceStatusFor(path, store);
+      if (status?.state === 'withdrawn') {
+        return json(res, 410, {
+          error: {
+            code: 'SURFACE_WITHDRAWN',
+            message: `This machine surface has been permanently withdrawn. ${status.note}`,
+            supersededBy: `${origin}${status.supersededBy}`,
+            alternative: alternativeChannel(origin),
+          },
+        });
+      }
+      if (status?.state === 'unavailable') {
+        res.setHeader('retry-after', String(status.retryAfterSeconds));
+        return json(res, 503, {
+          error: {
+            code: 'SURFACE_UNAVAILABLE',
+            message: `This machine surface is temporarily unavailable${status.reason ? `: ${status.reason}` : ''}. Retry after the stated interval; do not treat it as withdrawn.`,
+            retryAfterSeconds: status.retryAfterSeconds,
+            resumesAt: status.until,
+            alternative: alternativeChannel(origin),
+          },
+        });
+      }
+
       // ---- Discovery ----
       if (req.method === 'GET' && path === '/llms.txt') {
         // 1.1.4: root-level discovery file, reachable without prior knowledge

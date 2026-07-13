@@ -30,6 +30,16 @@ export interface DraftState {
   consequentialEvents: ConsequentialEvent[];
 }
 
+/** 1.4.2: a temporarily-unavailable machine surface. */
+export interface Outage {
+  /** Seconds until the surface is expected back (the Retry-After value). */
+  retryAfterSeconds?: number;
+  /** ISO 8601 time the surface resumes, if known. */
+  until?: string;
+  /** Plain-language reason, e.g. "Planned maintenance". */
+  reason?: string;
+}
+
 export interface EffectRecord {
   journeyId: string;
   actionId: string;
@@ -88,6 +98,23 @@ export class Store {
   private readonly principalSecrets = new Map<string, string>();
   /** T5: render the third-party notice block (harness-controlled; default off). */
   injectionEnabled = false;
+  /**
+   * 1.4.2: machine surfaces declared temporarily unavailable (planned outage).
+   * Harness- and operator-controlled; default empty, so with nothing declared
+   * the build is byte-for-byte identical to today (parity-safe, like
+   * injectionEnabled=false). A withdrawn surface is permanent and static
+   * (WITHDRAWN_SURFACES in server.ts); an outage here is temporary and lifted.
+   */
+  private readonly outages = new Map<string, Outage>();
+  declareOutage(path: string, opts: Outage = {}): void {
+    this.outages.set(path, opts);
+  }
+  clearOutage(path: string): void {
+    this.outages.delete(path);
+  }
+  outageFor(path: string): Outage | undefined {
+    return this.outages.get(path);
+  }
   private readonly sessions = new Map<string, Map<string, DraftState>>();
   private readonly delegations = new Map<string, Delegation>();
   readonly effects: EffectRecord[] = [];
