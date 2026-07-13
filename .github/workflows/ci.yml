@@ -20,6 +20,7 @@ jobs:
           - 03-reference-implementation/parity
           - 04-assurance/harness
           - 03-reference-implementation/packages/storybook-addon
+          - 03-reference-implementation/packages/adapter-agds
           - 07-governance/log-check
     steps:
       - uses: actions/checkout@v4

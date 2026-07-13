@@ -1,0 +1,19 @@
+{
+  "name": "@guiderails/adapter-agds",
+  "version": "0.1.0",
+  "description": "Reference design-system adapter (D-021): binds Guiderails field/step specs onto AgDS (@ag.ds-next/react) components, merging the agent-surface semantic bag in via mergeAgentProps so the human and agent surfaces cannot diverge. The prop mapping is pure and tested; the React components are the browser layer.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "typecheck:react": "tsc --noEmit -p tsconfig.react.json"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.0.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.6.0"
+  }
+}

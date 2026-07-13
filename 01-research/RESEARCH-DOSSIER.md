@@ -327,3 +327,4 @@ All sources accessed 9 July 2026.
 | S-113 | Headless UI (Tailwind Labs) — completely unstyled, fully accessible components; React + Vue — https://headlessui.com/ [MIT (Tailwind Labs)] | VERIFIED |
 | S-114 | Ariakit — unstyled primitives, store-based state, props system + render-prop composition for building design systems — https://ariakit.com/ [MIT] | VERIFIED |
 | S-115 | Storybook — Accessibility testing / @storybook/addon-a11y (axe-core per story, test:'error' fails CI, project/component/story-level parameters) — https://storybook.js.org/docs/writing-tests/accessibility-testing [MIT] | VERIFIED |
+| S-116 | @ag.ds-next/react — npm registry (v1.35.1, MIT) and repo TypeScript prop types (text-input, select, checkbox) — https://registry.npmjs.org/@ag.ds-next/react/latest ; https://github.com/agriculturegovau/agds-next | VERIFIED (primary; accessed 2026-07-13) |
