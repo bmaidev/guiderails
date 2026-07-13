@@ -102,6 +102,9 @@ export const J4_SPEC: JourneySpec = {
   title: 'Manage your agents\' authority',
   steps: [
     { id: 'authority', title: 'Agents acting for you', kind: 'safe' },
+    // 5.1.4: reviewing an agent's request is a safe step — reading it commits
+    // nothing. Granting routes through `give` (CA-4a); denying creates no effect.
+    { id: 'requests', title: 'Requests to act for you', kind: 'safe' },
     { id: 'give', title: 'Give an agent authority', kind: 'consequential', actionId: 'CA-4a', requires: ['authority'] },
     { id: 'control', title: 'Suspend, revoke or reinstate authority', kind: 'consequential', actionId: 'CA-4b', requires: ['authority'] },
   ],
@@ -112,6 +115,15 @@ export const DELEGABLE_ACTIONS = ['CA-1', 'CA-2', 'CA-3a', 'CA-3b'] as const;
 
 export const J4_FIELDS: Record<string, FieldSpec[]> = {
   authority: [],
+  requests: [
+    { name: 'requestId', label: 'Which request', dataType: 'text', required: true, constraints: { maxLength: 120 } },
+    {
+      name: 'decision', label: 'Your decision', dataType: 'enum', required: true,
+      constraints: { enumValues: ['grant', 'deny'] },
+      description: 'Granting gives the agent the authority it asked for, ending on a date you choose. Denying leaves things as they are.',
+    },
+    { name: 'validTo', label: 'If granting, authority ends on', dataType: 'date', required: false, description: 'Required to grant. Authority must end (5.1.2).' },
+  ],
   give: [
     { name: 'agentId', label: 'Agent identifier', dataType: 'text', required: true, constraints: { maxLength: 120 }, description: 'The agent you are giving authority to act for you.' },
     {
