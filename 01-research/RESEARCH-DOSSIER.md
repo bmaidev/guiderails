@@ -1,6 +1,6 @@
 # Research dossier
 
-**Status:** v0.3, 10 July 2026. Living document. v0.2 added §2.1 (baseline pattern derivations, S-55–S-62). v0.3 completes the §6 comparator pass (S-63–S-69), withdraws the MCP-references-Arazzo claim, and adds machine-readable source records under `sources/`.
+**Status:** v0.4, 13 July 2026. Living document. v0.2 added §2.1 (baseline pattern derivations, S-55–S-62). v0.3 completed the §6 comparator pass (S-63–S-69) and added machine-readable source records under `sources/`. v0.4 registers the Storybook/design-system adapter research (S-70–S-115) that grounds `03-reference-implementation/adapters/DESIGN.md`.
 
 **Verification key:**
 - **[VERIFIED]** — primary or official source (standards body, government publication, specification text) accessed on the date in the source register.
@@ -281,3 +281,49 @@ All sources accessed 9 July 2026.
 | S-67 | oecd.org — *Governing with Artificial Intelligence* / Digital Government Outlook 2026 | SECONDARY (survey; OECD primary for S-46's account) |
 | S-68 | whitehouse.gov — OMB M-25-21, *Accelerating Federal Use of AI* | VERIFIED (primary; accessed 10 Jul 2026; cited as evidence of the internal-use scope, not of citizen-side access) |
 | S-69 | tech.gov.sg/technews/ai-agents — Singapore GovTech, AI agents for public officers | VERIFIED (primary; accessed 10 Jul 2026; internal use) |
+| S-70 | Storybook Docs — Accessibility tests — https://storybook.js.org/docs/writing-tests/accessibility-testing [Docs CC BY (Storybook code MIT); paraphrased, no verbatim spec text reproduced] | VERIFIED |
+| S-71 | @storybook/test-runner — GitHub repo (rendered) — https://github.com/storybookjs/test-runner [MIT] | VERIFIED |
+| S-72 | @storybook/test-runner — README (raw, next branch) — https://raw.githubusercontent.com/storybookjs/test-runner/next/README.md [MIT] | VERIFIED |
+| S-73 | @storybook/test-runner — package.json (raw, next branch) — https://raw.githubusercontent.com/storybookjs/test-runner/next/package.json [MIT (license field = MIT, version 0.24.0)] | VERIFIED |
+| S-74 | Storybook Docs — Write an addon (writing-addons) — https://storybook.js.org/docs/addons/writing-addons [Docs CC BY (Storybook code MIT)] | VERIFIED |
+| S-75 | Storybook Docs — Addons API reference — https://storybook.js.org/docs/addons/addons-api [Docs CC BY (Storybook code MIT)] | VERIFIED |
+| S-76 | @storybook/addon-a11y — source directory (next branch) — https://github.com/storybookjs/storybook/tree/next/code/addons/a11y [MIT] | VERIFIED |
+| S-77 | @storybook/addon-a11y — package.json (raw, next branch) — https://raw.githubusercontent.com/storybookjs/storybook/next/code/addons/a11y/package.json [MIT (license field = MIT, version 10.6.0-alpha.0; dep axe-core ^4.2.0)] | VERIFIED |
+| S-78 | AgDS home page (Agriculture Design System) — https://design-system.agriculture.gov.au/ | VERIFIED |
+| S-79 | AgDS Foundations — Technical overview (framework, Emotion, single npm package, per-component entrypoints) — https://design-system.agriculture.gov.au/foundations/technical-overview | VERIFIED |
+| S-80 | AgDS Guides — Getting started (install, @emotion/cache + @emotion/react, RootStyleRegistry + Core providers, ag-branding theme) — https://design-system.agriculture.gov.au/guides/getting-started | VERIFIED |
+| S-81 | About AgDS (owner DAFF, based on GOLD, MIT licence, DDA 1992) — https://design-system.agriculture.gov.au/about | VERIFIED |
+| S-82 | Intopia — Statement of Conformance 2024, DAFF design system (WCAG 2.1 A & AA, WCAG-EM 1.0, JAWS/VoiceOver, issued 02/12/2024) — https://design-system.agriculture.gov.au/files/Statement%20of%20Conformance%202024%20-%20AgDS.pdf | VERIFIED |
+| S-83 | GitHub — agriculturegovau/agds-next (repo, MIT LICENSE, releases, monorepo workspaces incl. yourgov) — https://github.com/agriculturegovau/agds-next | VERIFIED |
+| S-84 | GitHub raw — packages/react/package.json (version 1.35.1, MIT, React 16-19 peer range, @emotion/react ^11.7.0) — https://raw.githubusercontent.com/agriculturegovau/agds-next/main/packages/react/package.json | VERIFIED |
+| S-85 | AgDS Beta v1.0.0 release note (2023-01-09 origin/status history) — https://design-system.agriculture.gov.au/updates/2023-01-09-beta | SECONDARY |
+| S-86 | Australian Government Architecture (AGA) — Agriculture Design System listing (government reuse/endorsement) — https://architecture.digital.gov.au/design/agriculture-design-system | TO VERIFY |
+| S-87 | npm — @ag.ds-next/react package page (blocked HTTP 403 this session; facts sourced from raw package.json instead) — https://www.npmjs.com/package/@ag.ds-next/react | TO VERIFY |
+| S-88 | designsystemau/gold-design-system (GitHub repo metadata via gh API: MIT, HTML/SCSS, last push 2021-09-22, no releases/tags) — https://github.com/designsystemau/gold-design-system [MIT] | VERIFIED |
+| S-89 | GOLD packages/core & packages/accordion package.json (gh API contents: @gold.au/core@5.0.0, @gold.au/accordion@8.0.0, MIT, React ES5 main, pancake-based) — https://github.com/designsystemau/gold-design-system/tree/main/packages [MIT] | VERIFIED |
+| S-90 | GOLD LICENSE file (MIT, Copyright (c) 2021 Design System Au) — https://github.com/designsystemau/gold-design-system/blob/main/LICENSE [MIT] | VERIFIED |
+| S-91 | npm registry @gold.au/core, @gold.au/accordion, @gold.au/pancake (dist-tags latest 5.0.0/8.0.0/2.0.0; time.modified 2022-04-05 for all) — https://registry.npmjs.org/@gold.au/core [MIT] | VERIFIED |
+| S-92 | designsystemau org repo listing via gh (most-recent push in whole org = gold-design-system-site 2022-09-02; org dormant since) — https://github.com/designsystemau | VERIFIED |
+| S-93 | Morpht blog: 'The Australian Government Design System is dead, long live GOLD' (history: DTA retired AuDS Sept 2021; community fork rebranded GOLD = Government Open Language for Design) — https://www.morpht.com/blog/australian-government-design-system-dead-long-live-gold | SECONDARY |
+| S-94 | dpc-sdp/ripple (GitHub repo metadata via gh API: Apache-2.0, TypeScript, isArchived=false, last push 2026-07-12; pnpm monorepo) — https://github.com/dpc-sdp/ripple [Apache-2.0] | VERIFIED |
+| S-95 | Ripple README.md (Ripple 2.0, complete re-write, maintained by Single Digital Presence, Dept of Government Services Victoria; 50+ gov sites; GitHub Packages only, npm deprecated; non-Vic use unsupported) — https://github.com/dpc-sdp/ripple/blob/main/README.md [Apache-2.0] | VERIFIED |
+| S-96 | Ripple packages/ripple-ui-core/package.json (@dpc-sdp/ripple-ui-core@2.53.0, Apache-2.0, peerDep vue ^3.5.38, @nuxt/kit, Vite UMD+ES build rpl-lib.*, focus-trap/mitt/@vueuse) — https://github.com/dpc-sdp/ripple/tree/main/packages/ripple-ui-core [Apache-2.0] | VERIFIED |
+| S-97 | Ripple GitHub releases via gh API (ripple-ui-core v2.53.0 2026-07-02, ripple-ui-maps v2.49.2, per-package release-please tags — active release cadence) — https://github.com/dpc-sdp/ripple/releases | VERIFIED |
+| S-98 | Ripple docs — Access to GitHub Packages (packages on ghcr under @dpc-sdp; PAT with read:packages scope in user .npmrc required) — https://www.ripple.sdp.vic.gov.au/design-system/develop/usage/access-to-github-packages | VERIFIED |
+| S-99 | dpc-sdp/ripple-framework — returns HTTP 404 / GraphQL 'Could not resolve to a Repository' (Ripple 2 canonical repo is now dpc-sdp/ripple; the ripple-framework path in the brief is stale) — https://github.com/dpc-sdp/ripple-framework | VERIFIED |
+| S-100 | WebMCP — W3C Web Machine Learning CG (Draft Community Group Report) — https://webmachinelearning.github.io/webmcp/ [W3C Community Contributor License Agreement (CLA)] | VERIFIED |
+| S-101 | WebMCP — Chrome for Developers (AI on Chrome docs) — https://developer.chrome.com/docs/ai/webmcp [Google/Chrome docs (CC BY 4.0 per site terms)] | VERIFIED |
+| S-102 | Join the WebMCP origin trial — Chrome for Developers blog — https://developer.chrome.com/blog/ai-webmcp-origin-trial [Google/Chrome docs (CC BY 4.0 per site terms)] | VERIFIED |
+| S-103 | Model Context Protocol — Server / Tools specification (rev 2025-06-18) — https://modelcontextprotocol.io/specification/2025-06-18/server/tools [MIT (spec repo) / CC-BY docs] | VERIFIED |
+| S-104 | The /llms.txt file — llmstxt.org — https://llmstxt.org/ [Apache-2.0 (llms-txt project)] | VERIFIED |
+| S-105 | schema.org Actions — potentialAction / EntryPoint / target — https://schema.org/docs/actions.html [CC BY-SA 3.0] | VERIFIED |
+| S-106 | Machine Readable Web APIs with Schema.org Action Annotations (arXiv:1805.05479) — https://arxiv.org/abs/1805.05479 [arXiv (author licence)] | SECONDARY |
+| S-107 | React Aria — Architecture & getting-started (Adobe): hook-based behaviour/accessibility, no rendering, useButton returns buttonProps you spread — https://react-aria.adobe.com/architecture [Apache-2.0 (Adobe / adobe/react-spectrum)] | VERIFIED |
+| S-108 | React Aria — getting-started canonical useButton example (static docs mirror) — https://reactspectrum.blob.core.windows.net/reactspectrum/f38a678556740b9f994854bb46f590a728ebdbad/docs/react-aria/getting-started.html [Apache-2.0] | VERIFIED |
+| S-109 | React Aria — mergeProps utility (chains handlers, combines classNames, dedupes ids, merges refs) — https://react-spectrum.adobe.com/react-aria/mergeProps.html [Apache-2.0] | VERIFIED |
+| S-110 | Radix Primitives — Introduction (unstyled, compound parts, asChild composition, 'base layer of your design system') — https://www.radix-ui.com/primitives/docs/overview/introduction [MIT (© WorkOS)] | VERIFIED |
+| S-111 | Radix Primitives — Accessibility overview (WAI-ARIA APG, tested with AT, focus/keyboard handled internally) — https://www.radix-ui.com/primitives/docs/overview/accessibility [MIT] | VERIFIED |
+| S-112 | Radix Primitives — GitHub repo (licence confirmation, 'low-level UI component library') — https://github.com/radix-ui/primitives [MIT (© 2022–present WorkOS)] | VERIFIED |
+| S-113 | Headless UI (Tailwind Labs) — completely unstyled, fully accessible components; React + Vue — https://headlessui.com/ [MIT (Tailwind Labs)] | VERIFIED |
+| S-114 | Ariakit — unstyled primitives, store-based state, props system + render-prop composition for building design systems — https://ariakit.com/ [MIT] | VERIFIED |
+| S-115 | Storybook — Accessibility testing / @storybook/addon-a11y (axe-core per story, test:'error' fails CI, project/component/story-level parameters) — https://storybook.js.org/docs/writing-tests/accessibility-testing [MIT] | VERIFIED |
