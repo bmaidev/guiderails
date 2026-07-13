@@ -353,3 +353,33 @@ test('logging: field values, tool calls, confirmations, effects and rejections a
     assert.ok(types.has(t as never), `log contains ${t}`);
   }
 });
+
+test('the human form rejects a JSON body and points at the declared tool', async () => {
+  // An exploratory agent POSTed JSON to the HTML endpoint; URLSearchParams read
+  // the whole JSON string as one field name and stored it. That is now a 415.
+  const r = await fetch(`${base}/journeys/J1/steps/identity`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ fullName: 'Rowan Ashe', dateOfBirth: '1999-03-14' }),
+  });
+  assert.equal(r.status, 415);
+  const body = await r.json() as any;
+  assert.equal(body.error.code, 'USE_DECLARED_TOOL');
+  assert.ok(body.error.declaredTool.endsWith('/api/journeys/J1/steps/identity'));
+});
+
+test('a value misplaced inside values is named, not stored (additionalProperties: false)', async () => {
+  // The confirmation token belongs beside values, not inside it. When an agent
+  // nested it, the fixture recorded it as a claimed field — polluting FIR.
+  const r = await fetch(`${base}/api/journeys/J1/steps/identity`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ values: { fullName: 'Rowan Ashe', dateOfBirth: '1999-03-14', email: 'rowan.ashe@example.com', mobile: '0400000001', confirmation: 'a-token' } }),
+  });
+  assert.equal(r.status, 422);
+  const body = await r.json() as any;
+  const unknown = body.errors.find((e: any) => e.field === 'confirmation');
+  assert.ok(unknown, 'the misplaced field must be named');
+  assert.equal(unknown.constraint, 'unknown');
+  assert.match(unknown.remediation, /beside "values"/);
+});

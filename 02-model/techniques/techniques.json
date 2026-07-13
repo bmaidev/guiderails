@@ -205,7 +205,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 557
+     "line": 575
     }
    ],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
@@ -221,7 +221,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 557
+     "line": 575
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/agent-surface.test.ts",
@@ -343,7 +343,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 913
+     "line": 970
     }
    ],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
@@ -493,7 +493,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 479
+     "line": 497
     },
     {
      "file": "03-reference-implementation/conformant/src/store.ts",
@@ -513,7 +513,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 886
+     "line": 943
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/accountability.ts",
@@ -657,7 +657,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 381
+     "line": 399
     },
     {
      "file": "03-reference-implementation/parity/src/divergences.ts",
@@ -751,7 +751,7 @@
     },
     {
      "file": "03-reference-implementation/conformant/src/server.ts",
-     "line": 760
+     "line": 794
     }
    ],
    "principleTechniques": "determination citation at the point of action (the service issues an opaque `determinationId` carrying no principal; the agent presents it with the consequential action, so the audit shows reliance without attributing the query — Q11); OAuth-family delegation with protected-resource metadata (RFC 9728); jurisdiction delegation profiles (for Australia: composition with myGov and statutory nominee arrangements — legal issues brief, Issue 2); WebMCP `agentInvoked`-class signals; single-use confirmation tokens issued to the principal's nominated channel (5.5.2); notification via existing secure inboxes; content provenance marking; a principal-only flag published in the register, evaluated before the delegation is read, so a conformant agent is warned off before it tries and a refusal never leaks whether the delegation would otherwise have sufficed (5.3.3).",
