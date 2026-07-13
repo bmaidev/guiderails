@@ -23,10 +23,10 @@
  */
 
 import React from 'react';
-import { J1_FIELDS, J1_SPEC } from '../../../conformant/src/journeys.ts';
-import { CA_REGISTER } from '../../../conformant/src/j1.ts';
-import { GuiderailsAgdsFields } from './components.tsx';
-import type { GuiderailsParameters } from '../../storybook-addon/src/parameters.ts';
+import { J1_FIELDS, J1_SPEC } from '../../conformant/src/journeys.ts';
+import { CA_REGISTER } from '../../conformant/src/j1.ts';
+import { GuiderailsAgdsFields } from './agds-components.tsx';
+import type { GuiderailsParameters } from '../../packages/storybook-addon/src/parameters.ts';
 
 const identityStep = J1_SPEC.steps.find((s) => s.id === 'identity')!;
 const submitStep = J1_SPEC.steps.find((s) => s.id === 'submit')!;

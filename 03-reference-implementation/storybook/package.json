@@ -1,0 +1,29 @@
+{
+  "name": "@guiderails/storybook-app",
+  "version": "0.1.0",
+  "description": "The Storybook app that hosts the Guiderails design-system demos: AgDS stories checked live by the guiderails addon's per-story criterion gate + axe. The browser layer the pure packages are verified against in Node.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "build": "storybook build",
+    "test-storybook": "test-storybook",
+    "test-storybook:ci": "concurrently -k -s first -n SB,TEST \"http-server storybook-static -p 6006 --silent\" \"wait-on tcp:127.0.0.1:6006 && test-storybook --url http://127.0.0.1:6006\""
+  },
+  "devDependencies": {
+    "@ag.ds-next/react": "1.35.1",
+    "@storybook/addon-a11y": "10.5.0",
+    "@storybook/react-vite": "10.5.0",
+    "@storybook/test-runner": "0.24.4",
+    "jsdom": "^29.1.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "storybook": "10.5.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "concurrently": "^9.1.0",
+    "http-server": "^14.1.1",
+    "wait-on": "^8.0.1"
+  }
+}

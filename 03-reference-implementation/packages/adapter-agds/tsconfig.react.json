@@ -1,9 +1,0 @@
-{
-  "//": "The React/AgDS component layer (components.tsx, agds.stories.tsx). Needs react + @ag.ds-next/react, NOT installed in the default matrix. Run when the AgDS toolchain is present: npm run typecheck:react.",
-  "compilerOptions": {
-    "target": "es2022", "module": "nodenext", "moduleResolution": "nodenext",
-    "strict": true, "noEmit": true, "jsx": "react-jsx",
-    "allowImportingTsExtensions": true, "skipLibCheck": true
-  },
-  "include": ["src/components.tsx", "src/agds.stories.tsx"]
-}

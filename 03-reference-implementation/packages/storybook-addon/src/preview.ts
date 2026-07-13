@@ -30,8 +30,8 @@ import { checkStory, type DomElement } from './checks.ts';
 import { buildAgentView } from './agent-view.ts';
 import type { GuiderailsParameters } from './parameters.ts';
 
-export const ADDON_ID = 'guiderails';
-export const RESULT_EVENT = `${ADDON_ID}/result`;
+import { ADDON_ID, RESULT_EVENT } from './constants.ts';
+export { ADDON_ID, RESULT_EVENT } from './constants.ts';
 
 /** A Storybook decorator: run the checks after render, emit for the panel. */
 export function withGuiderails(storyFn: () => unknown, context: { parameters: { guiderails?: GuiderailsParameters } }): unknown {

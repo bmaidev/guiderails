@@ -30,9 +30,8 @@ import { AddonPanel } from 'storybook/internal/components';
 import { useChannel } from 'storybook/manager-api';
 import type { CheckReport } from './checks.ts';
 import type { AgentView } from './agent-view.ts';
-import { ADDON_ID, RESULT_EVENT } from './preview.ts';
+import { ADDON_ID, RESULT_EVENT, PANEL_ID } from './constants.ts';
 
-const PANEL_ID = `${ADDON_ID}/panel`;
 
 function Panel(props: { active: boolean }) {
   const [state, setState] = useState<{ report: CheckReport; view: AgentView } | null>(null);

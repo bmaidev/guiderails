@@ -12,9 +12,9 @@ An AgDS component rendered through this adapter carries the machine meaning the 
 | File | Layer | Verified by |
 |---|---|---|
 | `contract.ts`, `adapter.ts` | pure prop mapping | `npm test` + `typecheck` (jsdom) ✓ |
-| `components.tsx`, `agds.stories.tsx` | React + AgDS binding | the AgDS/Storybook toolchain, once installed |
+| the React binding + AgDS stories | `../../storybook/` (the Storybook app) | the browser gate — builds and runs in Chromium |
 
-The React layer is behind `tsconfig.react.json` and needs `react` + `@ag.ds-next/react`, which the default matrix does not install. The prop mapping it renders is what the pure tests cover; `components.tsx` is the thin `<TextInput {...props} />` on top.
+The React binding that renders these props lives in the Storybook app (`../../storybook/`), where React and AgDS are installed — this package stays the pure, jsdom-verified prop mapping. The browser gate there confirms, on a live Chromium run, that AgDS renders the mapped props into an agent-legible surface.
 
 ## How the binding works
 
@@ -25,6 +25,6 @@ AgDS is Emotion-styled and **provider-coupled, not headless** (S-79), so the ada
 - **AgDS's accessibility claim is not inherited.** Intopia's Statement of Conformance is scoped to sampled design-system pages and makes consumers responsible for their own output (S-82). "Guiderails + AgDS is accessible" needs independent evidence.
 - **AgDS is assessed against WCAG 2.1**, while Guiderails is 2.2-shaped (S-82). Never represent an AgDS-built service as 2.2-conformant.
 
-## Standing up the React layer (remaining work)
+## The React layer
 
-Install `react` + `@ag.ds-next/react@1.35.1`, run `npm run typecheck:react`, wire `agds.stories.tsx` into the Storybook app from PR 2, and the addon's per-story checks run over live AgDS renders. The prop surface here is verified against the v1.35.1 types; re-check against the pinned version before shipping.
+The React components and AgDS stories that consume this mapping live in the Storybook app (`../../storybook/src/`), which builds and runs the criterion gate over live AgDS renders in Chromium. The prop surface here is verified against the AgDS v1.35.1 types; re-check against the pinned version before bumping.
