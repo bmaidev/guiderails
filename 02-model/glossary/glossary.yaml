@@ -7,8 +7,8 @@
 # Criterion 2.3 asks services to publish the vocabulary they make people use.
 # This is the standard applying that to itself (CLAUDE.md, Dogfooding).
 
-modelVersion: "0.5"
-termCount: 20
+modelVersion: "0.6"
+termCount: 21
 terms:
   - term: "Agent"
     definition: "software that autonomously or semi-autonomously perceives a service and takes actions on it in pursuit of a principal's goal. An agent is a *user agent* in the WCAG sense."
@@ -18,6 +18,9 @@ terms:
     source: "MODEL.md §3"
   - term: "Agent-facing surface"
     definition: "any machine surface, plus any content or metadata reasonably expected to be consumed by agents (including accessibility semantics and discovery files)."
+    source: "MODEL.md §3"
+  - term: "Authority request"
+    definition: "a message from an agent to a principal asking to be granted authority the agent does not hold. It binds the principal to nothing, changes no state the principal is accountable for, and is not a consequential action; the principal remains free to ignore it. Distinct from a delegation (which conveys authority) and from a consequential action (which creates an effect)."
     source: "MODEL.md §3"
   - term: "Binding determination"
     definition: "a determination the service operator will stand behind as its decision or assessment for the supplied circumstances."

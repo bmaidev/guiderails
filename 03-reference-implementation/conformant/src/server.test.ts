@@ -21,6 +21,12 @@ import { createFixtureServer } from './server.ts';
 import { SERVICE_DESC_PATH } from './html.ts';
 import { Store } from './store.ts';
 
+async function listen(server: import('node:http').Server): Promise<string> {
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const addr = server.address();
+  return `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+}
+
 let server: http.Server;
 let store: Store;
 let base: string;
@@ -433,4 +439,120 @@ test('1.4.2: withdrawn surfaces are declared in the service description (1.1.3, 
   assert.ok(d.availability, 'the description must declare availability');
   const retired = d.availability.retiredSurfaces.map((r: any) => r.path);
   assert.ok(retired.includes('/.well-known/guiderails-v1.json'), 'the 410 path must be discoverable');
+});
+
+// ---- 5.1.4: the agent-facing authority-request channel ----
+
+test('5.1.4: an agent requests authority it lacks; no delegation and no effect are created', async () => {
+  const store = new Store();
+  store.setPrincipalSecret('P9', 'secret-P9');
+  const server = createFixtureServer(store);
+  const url = await listen(server);
+  try {
+    const before = store.effects.length;
+    const r = await fetch(`${url}/api/authority-requests`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-agent-id': 'agent-nine' },
+      body: JSON.stringify({ principalId: 'P9', journeys: ['J1'], actions: ['CA-1'], reason: 'To lodge the claim' }),
+    });
+    assert.equal(r.status, 201);
+    const body = await r.json() as any;
+    assert.equal(body.status, 'pending');
+    assert.equal(store.delegationsFor('P9').length, 0, 'a request creates no delegation');
+    assert.equal(store.effects.length, before, 'a request creates no effect');
+    assert.ok(store.inbox('P9').some((n) => n.actionId === 'AUTHORITY-REQUEST'), 'the principal is alerted');
+  } finally { server.close(); }
+});
+
+test('5.1.4: a request for authority over delegations is refused (5.1.3)', async () => {
+  const r = await fetch(`${base}/api/authority-requests`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-agent-id': 'agent-alpha' },
+    body: JSON.stringify({ principalId: 'P1', journeys: ['J4'], actions: ['CA-4a'] }),
+  });
+  assert.equal(r.status, 403);
+  assert.equal(((await r.json()) as any).error.code, 'AUTHORITY_NOT_REQUESTABLE');
+});
+
+test('5.1.4: a scope-refused consequential action points the agent at the request channel', async () => {
+  // agent-alpha's delegation (DLG-T) scopes only J1/CA-1. Attempt CA-3b via J3.
+  const store = new Store();
+  store.addDelegation({ id: 'DLG-N', principalId: 'P1', agentId: 'agent-alpha', scope: { journeys: ['J1'], actions: ['CA-1'] }, validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active' });
+  const server = createFixtureServer(store);
+  const url = await listen(server);
+  try {
+    const r = await fetch(`${url}/api/journeys/J3/steps/payment`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-agent-id': 'agent-alpha', 'x-delegation-id': 'DLG-N' },
+      body: JSON.stringify({ values: { bsb: '123-456', accountNumber: '12345678', accountName: 'Rowan Ashe' } }),
+    });
+    assert.equal(r.status, 403);
+    const body = await r.json() as any;
+    assert.equal(body.error.requestAuthority, '/api/authority-requests', 'a scope refusal names the request channel');
+  } finally { server.close(); }
+});
+
+test('5.1.4: an identical pending request collapses to one record and one notification', async () => {
+  const store = new Store();
+  const server = createFixtureServer(store);
+  const url = await listen(server);
+  try {
+    const send = () => fetch(`${url}/api/authority-requests`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-agent-id': 'a1' }, body: JSON.stringify({ principalId: 'P1', journeys: ['J1'], actions: ['CA-1'] }) });
+    const first = await (await send()).json() as any;
+    const second = await (await send()).json() as any;
+    assert.equal(second.deduplicated, true);
+    assert.equal(second.id, first.id, 'the same pending request is returned');
+    assert.equal(store.authorityRequestsFor('P1').length, 1, 'one record');
+    assert.equal(store.inbox('P1').length, 1, 'one notification');
+  } finally { server.close(); }
+});
+
+test('5.1.4: the principal grants a request through J4; a scoped delegation is issued', async () => {
+  const store = new Store();
+  store.setPrincipalSecret('P1', 'secret-P1');
+  const server = createFixtureServer(store);
+  const url = await listen(server);
+  try {
+    const req = await (await fetch(`${url}/api/authority-requests`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-agent-id': 'agent-grant' }, body: JSON.stringify({ principalId: 'P1', journeys: ['J1'], actions: ['CA-1'] }) })).json() as any;
+
+    // The principal signs in and grants through the J4 requests step.
+    const auth = await fetch(`${url}/journeys/J4/authenticate`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ principalSecret: 'secret-P1' }).toString(), redirect: 'manual' });
+    const cookie = (auth.headers.get('set-cookie') ?? '').split(';')[0];
+    const grant = await fetch(`${url}/journeys/J4/steps/requests`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', cookie }, body: new URLSearchParams({ requestId: req.id, decision: 'grant', validTo: '2027-01-01' }).toString() });
+    assert.equal(grant.status, 201);
+
+    const after = await (await fetch(`${url}/api/authority-requests/${req.id}`)).json() as any;
+    assert.equal(after.status, 'granted');
+    assert.ok(after.grantedDelegationId);
+    const dlg = store.delegationsFor('P1').find((d) => d.id === after.grantedDelegationId)!;
+    assert.deepEqual(dlg.scope, { journeys: ['J1'], actions: ['CA-1'] }, 'the delegation names exactly what was requested');
+    assert.equal(dlg.agentId, 'agent-grant');
+  } finally { server.close(); }
+});
+
+test('5.1.4: an agent carrying identity cannot reach the J4 review surface', async () => {
+  const r = await fetch(`${base}/journeys/J4/steps/requests`, { headers: { 'x-agent-id': 'agent-alpha', cookie: 'sid=x' } });
+  const text = await r.text();
+  assert.match(text, /Sign in/, 'the review step stays principal-only (no principal cookie → sign in)');
+});
+
+test('5.1.4: the request-channel pointer is confined to scope refusals, not confirmation or principal-only ones', async () => {
+  // Belt-and-braces on the exclusion: a confirmation refusal points at the
+  // confirmation channel, not the request channel. (AGENT_MAY_NOT_EXECUTE is not
+  // reachable via any agent-drivable journey, so it is guarded in code, not here.)
+  const store = new Store();
+  store.addDelegation({ id: 'DLG-C', principalId: 'P1', agentId: 'agent-alpha', scope: { journeys: ['J1'], actions: ['CA-1'] }, validFrom: '2026-07-01T00:00:00Z', validTo: '2027-07-01T00:00:00Z', status: 'active' });
+  const server = createFixtureServer(store);
+  const url = await listen(server);
+  try {
+    // CA-1 is confirmation-designated; submitting without a token is a confirmation refusal.
+    const sid = 'confirm-refusal';
+    for (const [step, values] of SAFE_STEPS) {
+      await fetch(`${url}/api/journeys/J1/steps/${step}`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: `sid=${sid}`, 'x-agent-id': 'agent-alpha', 'x-delegation-id': 'DLG-C' }, body: JSON.stringify({ values }) });
+    }
+    const r = await fetch(`${url}/api/journeys/J1/steps/submit`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: `sid=${sid}`, 'x-agent-id': 'agent-alpha', 'x-delegation-id': 'DLG-C' }, body: JSON.stringify({ values: { declaration: true } }) });
+    const body = await r.json() as any;
+    assert.ok(body.error.confirmationChannel, 'a confirmation refusal points at the confirmation channel');
+    assert.ok(!body.error.requestAuthority, 'and not at the request channel — a token is not authority');
+  } finally { server.close(); }
 });
