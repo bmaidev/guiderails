@@ -3,7 +3,8 @@
  "modelVersion": "0.6",
  "criteria": 56,
  "demonstrated": 37,
- "gaps": 19,
+ "gaps": 18,
+ "inapplicable": 1,
  "records": [
   {
    "criterion": "1.1.1",
