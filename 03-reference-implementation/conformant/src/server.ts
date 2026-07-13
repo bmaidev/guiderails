@@ -253,6 +253,24 @@ function malformed(res: http.ServerResponse, message: string): void {
 }
 
 /**
+ * Fields an agent submitted that the step does not declare. The published
+ * schema says `additionalProperties: false`; a service that then silently
+ * stores an undeclared field breaks that promise, and — as an exploratory run
+ * showed — an agent that misplaces a confirmation token *inside* the values
+ * object has its token recorded as if it were a claimed fact about the
+ * principal. Naming the unknown field is the legible correction (2.2.2).
+ */
+function unknownFields(fields: JourneyDef['fields'][string], values: Record<string, unknown>): string[] {
+  const declared = new Set(fields.map((f) => f.name));
+  return Object.keys(values).filter((k) => !declared.has(k));
+}
+
+/** True when the request body is JSON rather than the form encoding this path reads. */
+function looksLikeJson(req: http.IncomingMessage): boolean {
+  return /application\/json/i.test(String(req.headers['content-type'] ?? ''));
+}
+
+/**
  * Which methods a known path accepts. Answering a wrong-method request with 404
  * tells an agent the resource does not exist; the truth is that it does, and it
  * wanted POST. Every agent in the smoke runs probed GET on the determination
@@ -623,6 +641,22 @@ export function createFixtureServer(store: Store): http.Server {
           });
         }
         const values = body.values ?? {};
+        // 3.1.1 / 2.2.2: the schema declares these fields and no others. An
+        // unknown key — most often a confirmation token or determinationId
+        // misplaced inside `values` instead of beside it — is named, not stored.
+        const extra = unknownFields(journey.fields[stepId], values);
+        if (extra.length > 0) {
+          return json(res, 422, {
+            errors: extra.map((field) => ({
+              field,
+              constraint: 'unknown',
+              message: `"${field}" is not a field of the ${stepId} step.`,
+              remediation: field === 'confirmation' || field === 'determinationId'
+                ? `Present "${field}" beside "values" in the request body, not inside it. See this journey's inputSchema.`
+                : `Remove "${field}". The step's fields are listed in this journey's inputSchema.`,
+            })),
+          });
+        }
         store.record({ at: now(), sessionId: sid, type: 'tool-call', detail: { journey: jid, step: stepId, values } });
 
         const errors = validateValues(journey.fields[stepId], values);
@@ -769,7 +803,30 @@ ${THIRD_PARTY_NOTICE.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('\n')}
         }
 
         if (req.method === 'POST') {
+          // This is the human HTML surface. An agent that POSTs JSON here has
+          // taken a wrong turn: URLSearchParams would read the whole JSON string
+          // as a single field name and store garbage. Send it to the declared
+          // tool instead of silently mangling its request (5.6.2, 2.2.2).
+          if (looksLikeJson(req)) {
+            res.setHeader('link', `<${origin}/api/journeys/${jid}/schema>; rel="describedby"`);
+            return json(res, 415, {
+              error: {
+                code: 'USE_DECLARED_TOOL',
+                message: 'This is the human form endpoint and reads form-encoded input. To act as an agent, POST to the declared tool.',
+                declaredTool: `${origin}/api/journeys/${jid}/steps/${stepId}`,
+                schema: `${origin}/api/journeys/${jid}/schema`,
+              },
+            });
+          }
           const raw = Object.fromEntries(new URLSearchParams(await readBody(req)));
+          const extra = unknownFields(fields, raw);
+          if (extra.length > 0) {
+            // A field the form never rendered. Do not store it (D-009-adjacent:
+            // the human surface accepts exactly what it advertises).
+            return html(res, 422, page(step.title, form(path, fields, raw, extra.map((field) => ({
+              field, constraint: 'unknown', message: `"${field}" is not part of this form.`, remediation: 'Remove it.',
+            })), submitLabel)));
+          }
           const values = coerce(fields, raw);
           store.record({ at: now(), sessionId: sid, type: 'field-values', detail: { journey: jid, step: stepId, values } });
           const errors = validateValues(fields, values);

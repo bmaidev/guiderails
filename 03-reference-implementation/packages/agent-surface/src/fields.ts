@@ -72,7 +72,9 @@ export interface FieldError {
     | 'minimum'
     | 'maximum'
     | 'maxLength'
-    | 'format';
+    | 'format'
+    /** The field is not declared by the step at all (additionalProperties: false). */
+    | 'unknown';
   message: string;
   /** What input the service will accept (2.2.2). */
   remediation: string;
