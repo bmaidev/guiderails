@@ -166,7 +166,7 @@
     },
     {
      "file": "03-reference-implementation/packages/adapter-agds/src/adapter.test.ts",
-     "line": 98
+     "line": 122
     }
    ],
    "principleTechniques": "HTML semantics and ARIA; `autocomplete` and `inputmode`; structured error objects; tagged PDF with structured sidecars; ISO 8601 with zone offsets.",
@@ -327,7 +327,7 @@
     },
     {
      "file": "03-reference-implementation/packages/adapter-agds/src/adapter.test.ts",
-     "line": 98
+     "line": 122
     }
    ],
    "principleTechniques": "WebMCP declarative API for form-backed steps; WebMCP imperative API for dynamic steps; MCP for back-end surfaces; Arazzo for 3.1.2; idempotency keys; HTTP 429 with `Retry-After`.",
@@ -645,7 +645,7 @@
     },
     {
      "file": "03-reference-implementation/packages/adapter-agds/src/adapter.ts",
-     "line": 112
+     "line": 145
     },
     {
      "file": "03-reference-implementation/packages/agent-surface/src/accountability.ts",

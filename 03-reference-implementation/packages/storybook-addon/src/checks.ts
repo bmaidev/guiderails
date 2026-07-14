@@ -59,8 +59,13 @@ function controlFor(root: DomElement, field: FieldSpec): DomElement | null {
   return root.querySelector(`[name="${field.name}"]`) ?? root.querySelector(`#${field.name}`);
 }
 
-/** The accessible name of a control, by the paths the fixture and typical design systems use. */
-function accessibleName(root: DomElement, control: DomElement, fieldName: string): string {
+/**
+ * The accessible name of a control, by the paths the fixture and typical design
+ * systems use. Uses the control's OWN id for label association (a design system's
+ * control id need not equal the field name — a radio group's controls are
+ * `name-0`, `name-1`), then a group `<legend>` for grouped controls, then aria.
+ */
+function accessibleName(root: DomElement, control: DomElement): string {
   const ariaLabel = control.getAttribute('aria-label');
   if (ariaLabel && ariaLabel.trim()) return ariaLabel.trim();
   const labelledBy = control.getAttribute('aria-labelledby');
@@ -68,9 +73,26 @@ function accessibleName(root: DomElement, control: DomElement, fieldName: string
     const parts = labelledBy.split(/\s+/).map((id) => root.querySelector(`#${id}`)?.textContent ?? '');
     if (parts.join('').trim()) return parts.join(' ').trim();
   }
-  const label = root.querySelector(`label[for="${fieldName}"]`);
-  if (label?.textContent && label.textContent.trim()) return label.textContent.trim();
+  const id = control.getAttribute('id');
+  if (id) {
+    const label = root.querySelector(`label[for="${id}"]`);
+    if (label?.textContent && label.textContent.trim()) return label.textContent.trim();
+  }
+  // A grouped control (radio/checkbox in a fieldset) is named by its legend.
+  const legend = root.querySelector('fieldset > legend');
+  if (legend?.textContent && legend.textContent.trim()) return legend.textContent.trim();
   return '';
+}
+
+/**
+ * Whether a control's DOM input `type` is compatible with the spec-derived type.
+ * A design system may render any field as an accessible **text** control — an
+ * AgDS DatePicker is a formatted text input, not `<input type="date">` — so text
+ * is universally compatible. An exact match is compatible. A *different specific*
+ * type (a date field rendered as `type="email"`) is not: that is a real mismatch.
+ */
+export function typeCompatible(specType: string, domType: string): boolean {
+  return domType === specType || domType === 'text';
 }
 
 /** 2.2.1: every declared field renders a control with a programmatic name, correct required-state and type. */
@@ -82,12 +104,13 @@ function check_2_2_1(root: DomElement, fields: FieldSpec[]): CriterionResult {
       failures.push(`no control renders field "${field.name}"`);
       continue;
     }
-    if (!accessibleName(root, control, field.name)) failures.push(`"${field.name}" has no accessible name`);
+    if (!accessibleName(root, control)) failures.push(`"${field.name}" has no accessible name`);
     const bag = getControlAttributes(field);
     const requiredInDom = control.getAttribute('aria-required') === 'true' || control.getAttribute('required') !== null;
     if (field.required && !requiredInDom) failures.push(`"${field.name}" is required in the spec but not marked required in the DOM`);
-    if (bag.type && control.getAttribute('type') && control.getAttribute('type') !== bag.type) {
-      failures.push(`"${field.name}" renders type="${control.getAttribute('type')}" but the spec derives "${bag.type}"`);
+    const domType = control.getAttribute('type');
+    if (bag.type && domType && !typeCompatible(String(bag.type), domType)) {
+      failures.push(`"${field.name}" renders type="${domType}", incompatible with the spec's "${bag.type}"`);
     }
   }
   return { criterion: '2.2.1', applicable: fields.length > 0, pass: failures.length === 0, failures };
