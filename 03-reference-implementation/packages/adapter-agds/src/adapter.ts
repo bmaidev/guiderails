@@ -37,57 +37,90 @@
 import { getControlAttributes, type FieldSpec, type ConsequentialActionSpec } from '../../agent-surface/src/index.ts';
 import type { GuiderailsAdapter, RenderCtx } from './contract.ts';
 
+/** The AgDS components the adapter targets, one per Guiderails data type. */
+export type AgdsComponent = 'TextInput' | 'Textarea' | 'Select' | 'Radio' | 'Checkbox' | 'DatePicker' | 'FileInput';
+
 /** Which AgDS component renders a field, and the props to pass it. */
 export interface AgdsFieldBinding {
-  component: 'TextInput' | 'Select' | 'Checkbox';
+  component: AgdsComponent;
   props: Record<string, unknown>;
+}
+
+export interface RenderCtxExt extends RenderCtx {
+  /**
+   * Presentational preference the design system honours without changing the
+   * spec: an enum may render as a Select (default) or, for a small closed set,
+   * a Radio group; a long text field as a Textarea. The machine meaning is
+   * identical either way, which is the point.
+   */
+  variant?: 'radio' | 'textarea';
 }
 
 function invalidProps(ctx?: RenderCtx): Record<string, unknown> {
   return ctx?.error ? { invalid: true, message: `${ctx.error.message} ${ctx.error.remediation}`.trim() } : {};
 }
 
+/** inputMode for the numeric data types, so an agent and a phone keyboard both read intent. */
+function inputModeFor(dataType: FieldSpec['dataType']): string | undefined {
+  if (dataType === 'integer') return 'numeric';
+  if (dataType === 'money' || dataType === 'decimal') return 'decimal';
+  return undefined;
+}
+
 /**
- * Map a FieldSpec to an AgDS component binding. The semantic bag drives the
- * forwarded native attributes; AgDS's own props carry label/hint/required.
+ * Map a FieldSpec to an AgDS component binding, for ALL ten data types. The
+ * semantic bag drives the forwarded native attributes; AgDS's own props carry
+ * label/hint/required/invalid. The human and agent surfaces both derive from
+ * this one FieldSpec, so they cannot diverge.
  */
-export function agdsFieldBinding(field: FieldSpec, ctx?: RenderCtx): AgdsFieldBinding {
+export function agdsFieldBinding(field: FieldSpec, ctx?: RenderCtxExt): AgdsFieldBinding {
   const bag = getControlAttributes(field);
-  // AgDS uses React camelCase; the HTML bag uses lowercase attribute names.
+  const inputMode = inputModeFor(field.dataType) ?? (typeof bag.inputmode === 'string' ? bag.inputmode : undefined);
   const native: Record<string, unknown> = {
     name: field.name,
     id: field.name, // stable, so the label associates and an agent can find it
     ...(typeof bag.autocomplete === 'string' ? { autoComplete: bag.autocomplete } : {}),
-    ...(typeof bag.inputmode === 'string' ? { inputMode: bag.inputmode } : {}),
+    ...(inputMode ? { inputMode } : {}),
   };
+  const labelled = { label: field.label, hint: field.description, required: Boolean(field.required) };
 
-  if (field.dataType === 'boolean') {
-    return {
-      component: 'Checkbox',
+  switch (field.dataType) {
+    case 'boolean':
       // AgDS Checkbox takes its label as children, and has no hint/message of its own.
-      props: { children: field.label, required: Boolean(field.required), ...native, ...invalidProps(ctx) },
-    };
-  }
+      return { component: 'Checkbox', props: { children: field.label, required: Boolean(field.required), ...native, ...invalidProps(ctx) } };
 
-  if (field.dataType === 'enum') {
-    const options = (field.constraints?.enumValues ?? []).map((v) => ({ label: v, value: v }));
-    return {
-      component: 'Select',
-      props: {
-        label: field.label, hint: field.description, required: Boolean(field.required),
-        options, ...native, ...invalidProps(ctx),
-      },
-    };
-  }
+    case 'date':
+      // AgDS DatePicker is an accessible text-based picker (not a native date input).
+      return { component: 'DatePicker', props: { ...labelled, ...native, ...invalidProps(ctx) } };
 
-  return {
-    component: 'TextInput',
-    props: {
-      label: field.label, hint: field.description, required: Boolean(field.required),
-      ...(typeof bag.type === 'string' ? { type: bag.type } : {}),
-      ...native, ...invalidProps(ctx),
-    },
-  };
+    case 'file':
+      return { component: 'FileInput', props: { ...labelled, ...native, ...invalidProps(ctx), maxSize: field.constraints?.maximum, accept: field.constraints?.acceptFormats } };
+
+    case 'enum': {
+      const options = (field.constraints?.enumValues ?? []).map((v) => ({ label: v, value: v }));
+      if (ctx?.variant === 'radio') {
+        // A Radio group inside an AgDS ControlGroup — same closed set, different affordance.
+        return { component: 'Radio', props: { ...labelled, name: field.name, options, ...invalidProps(ctx) } };
+      }
+      return { component: 'Select', props: { ...labelled, options, ...native, ...invalidProps(ctx) } };
+    }
+
+    case 'text':
+      if (ctx?.variant === 'textarea') {
+        return { component: 'Textarea', props: { ...labelled, ...native, ...invalidProps(ctx) } };
+      }
+    // falls through to TextInput
+    // eslint-disable-next-line no-fallthrough
+    default:
+      return {
+        component: 'TextInput',
+        props: {
+          ...labelled,
+          ...(typeof bag.type === 'string' ? { type: bag.type } : {}),
+          ...native, ...invalidProps(ctx),
+        },
+      };
+  }
 }
 
 /** The GuiderailsAdapter contract, realised for AgDS. `Props` is left broad — AgDS types live in the React layer. */

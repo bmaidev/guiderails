@@ -28,3 +28,5 @@ AgDS is Emotion-styled and **provider-coupled, not headless** (S-79), so the ada
 ## The React layer
 
 The React components and AgDS stories that consume this mapping live in the Storybook app (`../../storybook/src/`), which builds and runs the criterion gate over live AgDS renders in Chromium. The prop surface here is verified against the AgDS v1.35.1 types; re-check against the pinned version before bumping.
+
+**A finding the browser gate surfaced:** AgDS FileInput (v1.35.1) does not convey required programmatically on the control — a required file field is not fully machine-legible. Recorded as a tested fact here and reported as a todo (not a failure) in the demo.
