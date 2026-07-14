@@ -204,9 +204,89 @@ function serviceDescription(origin: string): Record<string, unknown> {
           additionalProperties: false,
         },
       },
+      // 4.1.2: prose eligibility guidance is flagged non-authoritative and names
+      // the authoritative channel (the determination endpoint above). 4.1.1 is
+      // met here, so this is belt-and-braces, not the fallback path.
+      eligibilityGuidance: {
+        prose: 'General guidance only: you may qualify if you are enrolled in an approved course and meet the residency and income tests.',
+        authoritative: false,
+        authoritativeChannel: `${origin}/api/rules/ssp/determination`,
+      },
+    },
+    ...machineSurfaces(origin),
+  };
+}
+
+/**
+ * The machine surfaces the reference implementation publishes for the Principle
+ * 1–3 "surface" criteria: a glossary of terms with legal source and stable ids
+ * (2.3.1, 2.3.2); the documents a journey requires and issues (2.5.1) and the
+ * evidence rules (2.5.2); a machine-readable per-journey workflow (3.1.2);
+ * published agent rate limits (3.3.2); and a status surface announcing planned
+ * outages with start and end times (1.4.1). All fictional (D-009).
+ */
+function machineSurfaces(origin: string): Record<string, unknown> {
+  return {
+    glossary: {
+      url: `${origin}/api/glossary`,
+      terms: GLOSSARY_TERMS,
+    },
+    documents: {
+      // 2.5.1: documents the journey issues, in accessible machine-readable formats.
+      issued: [
+        { id: 'ssp-outcome-notice', title: 'Payment outcome notice', formats: ['html', 'pdf', 'json'], accessible: true },
+        { id: 'ssp-report-receipt', title: 'Fortnightly report receipt', formats: ['html', 'json'], accessible: true },
+      ],
+      // 2.5.2: evidence requirements — which documents, acceptable formats, and
+      // the criteria each must satisfy.
+      evidence: [
+        {
+          id: 'enrolment-evidence',
+          title: 'Proof of enrolment or a written offer',
+          acceptableFormats: ['pdf'],
+          maxSizeMB: 10,
+          mustEstablish: ['the provider name', 'the course name', 'your name', 'enrolment status or a dated written offer'],
+        },
+      ],
+    },
+    workflows: Object.entries(JOURNEYS).map(([id, j]) => ({
+      journey: id,
+      schema: `${origin}/api/journeys/${id}/schema`,
+      steps: j.spec.steps.map((s, i) => ({ id: s.id, order: i, requires: s.requires ?? [], kind: s.kind, actionId: s.actionId })),
+      successCriterion:
+        id === 'J1' ? 'A claim is lodged and acknowledged with a reference.'
+          : id === 'J2' ? 'A fortnightly report is lodged for the current period.'
+          : id === 'J3' ? 'The nominated detail is updated and confirmed.'
+          : 'Authority is given, suspended, revoked or reinstated as the principal directs.',
+    })),
+    // 3.3.2: rate limits for authorised agents — published, sufficient to complete
+    // each essential journey, and enforced with standard machinery.
+    rateLimits: {
+      authorisedAgent: {
+        requestsPerMinute: 120,
+        burst: 30,
+        headers: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+        retryAfterOn429: true,
+        sufficientFor: 'Completing any single essential journey end-to-end without throttling.',
+      },
+    },
+    // 1.4.1: planned outages of machine surfaces, with start and end times.
+    status: {
+      url: `${origin}/api/status`,
+      current: 'operational',
+      plannedOutages: [
+        { surface: SERVICE_DESC_PATH, start: '2026-09-01T14:00:00Z', end: '2026-09-01T16:00:00Z', reason: 'Scheduled maintenance (fictional).' },
+      ],
     },
   };
 }
+
+/** 2.3.1/2.3.2: terms of legal or eligibility significance, each with a definition, a legal source, and a stable reusable id. */
+const GLOSSARY_TERMS = [
+  { id: 'guiderails:ssp/approved-course', term: 'approved course', definition: 'A course on the approved-courses list maintained under the instrument.', legalSource: { instrument: INSTRUMENT_ID, provision: 's 12' } },
+  { id: 'guiderails:ssp/australian-resident', term: 'Australian resident', definition: 'A person who resides in Australia and holds a qualifying visa or citizenship.', legalSource: { instrument: INSTRUMENT_ID, provision: 's 7' } },
+  { id: 'guiderails:ssp/assessable-income', term: 'assessable income', definition: 'Fortnightly income counted for the payment, before tax, as defined by the instrument.', legalSource: { instrument: INSTRUMENT_ID, provision: 's 20' } },
+] as const;
 
 /** An accessible sign-in form: labelled control, described-by hint (2.2.1). */
 function signInForm(): string {
@@ -626,6 +706,22 @@ export function createFixtureServer(store: Store): http.Server {
         return json(res, 200, store.log);
       }
 
+      // ---- Machine surfaces referenced from the service description ----
+      if (req.method === 'GET' && path === '/api/glossary') {
+        // 2.3.1/2.3.2: terms resolve to definitions with a legal source and stable ids.
+        return json(res, 200, { surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED }, terms: GLOSSARY_TERMS });
+      }
+      if (req.method === 'GET' && path === '/api/status') {
+        // 1.4.1: planned outages announced with start and end times.
+        return json(res, 200, {
+          surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED },
+          current: 'operational',
+          plannedOutages: [
+            { surface: SERVICE_DESC_PATH, start: '2026-09-01T14:00:00Z', end: '2026-09-01T16:00:00Z', reason: 'Scheduled maintenance (fictional).' },
+          ],
+        });
+      }
+
       // ---- Rules (Principle 4) ----
       if (req.method === 'GET' && path === '/api/rules/ssp/changelog') {
         return json(res, 200, {
@@ -667,6 +763,10 @@ export function createFixtureServer(store: Store): http.Server {
           });
           return json(res, 200, {
             determinationId: id,
+            // 4.5.1: a determination on declared circumstances is indicative, and
+            // states what would make it binding — an assessment of a lodged claim.
+            disposition: 'indicative',
+            bindingWhen: 'A claim is lodged (journey J1) and assessed on your actual, evidenced circumstances.',
             citeWhenActing: 'Present determinationId with a consequential action so the principal\'s audit record shows what you relied on (5.4.1). Doing so attributes your reliance, not this query (4.5.2).',
             ...determination,
           });
