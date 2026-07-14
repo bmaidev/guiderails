@@ -138,6 +138,37 @@ export class Store {
     return this.outages.get(path);
   }
 
+  /**
+   * 5.5.3: consequential actions queued for the principal's approval under a
+   * review-before-execute delegation. Nothing executes until the principal
+   * approves — the queue is the whole point of the mode.
+   */
+  readonly reviewQueue: { id: string; principalId: string; agentId: string; actionId: string; values: Record<string, unknown>; at: string; status: 'awaiting-principal' | 'approved' | 'rejected' }[] = [];
+  queueForReview(entry: { id: string; principalId: string; agentId: string; actionId: string; values: Record<string, unknown>; at: string }): void {
+    this.reviewQueue.push({ ...entry, status: 'awaiting-principal' });
+  }
+  reviewQueueFor(principalId: string): typeof this.reviewQueue {
+    return this.reviewQueue.filter((q) => q.principalId === principalId);
+  }
+
+  /** 4.4.3: consumers subscribed to rule-change notifications. */
+  readonly ruleSubscriptions: { id: string; callbackUrl: string; instrument: string; at: string }[] = [];
+  addRuleSubscription(s: { id: string; callbackUrl: string; instrument: string; at: string }): void {
+    this.ruleSubscriptions.push(s);
+  }
+
+  /**
+   * 3.5.1: the information the service already holds for a principal, merged from
+   * their prior effects, so a later journey can offer prefill rather than re-ask.
+   */
+  heldProfile(principalId: string): Record<string, unknown> {
+    const held: Record<string, unknown> = {};
+    for (const e of this.effects.filter((x) => x.principalId === principalId)) {
+      Object.assign(held, e.values);
+    }
+    return held;
+  }
+
   /** 5.1.4: authority requests, keyed by id. A request creates no effect. */
   private readonly authorityRequests = new Map<string, AuthorityRequest>();
   addAuthorityRequest(r: AuthorityRequest): void {

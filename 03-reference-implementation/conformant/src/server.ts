@@ -171,6 +171,10 @@ function serviceDescription(origin: string): Record<string, unknown> {
       delegations: `${origin}/api/delegations`,
       suspendOrRevoke: `${origin}/api/delegations/{delegationId}/{suspend|revoke|reinstate}`,
       note: 'Revocation is terminal and takes effect before any further consequential action.',
+      // 5.5.3: a delegation may be set to review-before-execute; its agent's
+      // consequential actions queue here for the principal's approval.
+      reviewQueue: `${origin}/api/review-queue`,
+      reviewBeforeExecute: 'Set on a delegation so that every consequential action it authorises queues for your approval before it executes.',
     },
     // 5.3.2: how a designated action is confirmed. Agents redeem; only the principal obtains.
     confirmationChannel: {
@@ -179,9 +183,26 @@ function serviceDescription(origin: string): Record<string, unknown> {
       redeemedBy: 'the agent, once, for the one action named in the token',
       note: 'An interaction within an agent-driven session is not a confirmation event.',
     },
+    // 3.2.1: declared tool contracts are stable across releases within a major
+    // version; a deprecation carries a published notice period before removal.
+    toolContracts: {
+      majorVersion: 1,
+      stabilityPolicy: 'Within major version 1, declared tool inputs and outputs do not change incompatibly; additive change only.',
+      deprecationNoticePeriodDays: 90,
+      deprecations: [],
+    },
+    // 3.5.1 / 3.5.2: prefill of held information, and a single structured submission
+    // as an alternative to stepwise completion.
+    completion: {
+      prefill: `${origin}/api/journeys/{journeyId}/prefill`,
+      structuredSubmission: `${origin}/api/journeys/{journeyId}/submit`,
+      note: 'Fetch prefill for information already held; POST a whole-journey structured body to /submit instead of completing step by step.',
+    },
     rules: {
       determination: `${origin}/api/rules/ssp/determination`,
       changelog: `${origin}/api/rules/ssp/changelog`,
+      // 4.4.3: register to be notified of rule changes.
+      subscribe: `${origin}/api/rules/ssp/subscribe`,
       instrument: { id: INSTRUMENT_ID, version: RULES_VERSION, commencement: INSTRUMENT_COMMENCEMENT },
       // 3.1.1: a declared tool describes its input. An endpoint that accepts one
       // envelope while its documentation names only the fields inside it is a
@@ -204,9 +225,89 @@ function serviceDescription(origin: string): Record<string, unknown> {
           additionalProperties: false,
         },
       },
+      // 4.1.2: prose eligibility guidance is flagged non-authoritative and names
+      // the authoritative channel (the determination endpoint above). 4.1.1 is
+      // met here, so this is belt-and-braces, not the fallback path.
+      eligibilityGuidance: {
+        prose: 'General guidance only: you may qualify if you are enrolled in an approved course and meet the residency and income tests.',
+        authoritative: false,
+        authoritativeChannel: `${origin}/api/rules/ssp/determination`,
+      },
+    },
+    ...machineSurfaces(origin),
+  };
+}
+
+/**
+ * The machine surfaces the reference implementation publishes for the Principle
+ * 1–3 "surface" criteria: a glossary of terms with legal source and stable ids
+ * (2.3.1, 2.3.2); the documents a journey requires and issues (2.5.1) and the
+ * evidence rules (2.5.2); a machine-readable per-journey workflow (3.1.2);
+ * published agent rate limits (3.3.2); and a status surface announcing planned
+ * outages with start and end times (1.4.1). All fictional (D-009).
+ */
+function machineSurfaces(origin: string): Record<string, unknown> {
+  return {
+    glossary: {
+      url: `${origin}/api/glossary`,
+      terms: GLOSSARY_TERMS,
+    },
+    documents: {
+      // 2.5.1: documents the journey issues, in accessible machine-readable formats.
+      issued: [
+        { id: 'ssp-outcome-notice', title: 'Payment outcome notice', formats: ['html', 'pdf', 'json'], accessible: true },
+        { id: 'ssp-report-receipt', title: 'Fortnightly report receipt', formats: ['html', 'json'], accessible: true },
+      ],
+      // 2.5.2: evidence requirements — which documents, acceptable formats, and
+      // the criteria each must satisfy.
+      evidence: [
+        {
+          id: 'enrolment-evidence',
+          title: 'Proof of enrolment or a written offer',
+          acceptableFormats: ['pdf'],
+          maxSizeMB: 10,
+          mustEstablish: ['the provider name', 'the course name', 'your name', 'enrolment status or a dated written offer'],
+        },
+      ],
+    },
+    workflows: Object.entries(JOURNEYS).map(([id, j]) => ({
+      journey: id,
+      schema: `${origin}/api/journeys/${id}/schema`,
+      steps: j.spec.steps.map((s, i) => ({ id: s.id, order: i, requires: s.requires ?? [], kind: s.kind, actionId: s.actionId })),
+      successCriterion:
+        id === 'J1' ? 'A claim is lodged and acknowledged with a reference.'
+          : id === 'J2' ? 'A fortnightly report is lodged for the current period.'
+          : id === 'J3' ? 'The nominated detail is updated and confirmed.'
+          : 'Authority is given, suspended, revoked or reinstated as the principal directs.',
+    })),
+    // 3.3.2: rate limits for authorised agents — published, sufficient to complete
+    // each essential journey, and enforced with standard machinery.
+    rateLimits: {
+      authorisedAgent: {
+        requestsPerMinute: 120,
+        burst: 30,
+        headers: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+        retryAfterOn429: true,
+        sufficientFor: 'Completing any single essential journey end-to-end without throttling.',
+      },
+    },
+    // 1.4.1: planned outages of machine surfaces, with start and end times.
+    status: {
+      url: `${origin}/api/status`,
+      current: 'operational',
+      plannedOutages: [
+        { surface: SERVICE_DESC_PATH, start: '2026-09-01T14:00:00Z', end: '2026-09-01T16:00:00Z', reason: 'Scheduled maintenance (fictional).' },
+      ],
     },
   };
 }
+
+/** 2.3.1/2.3.2: terms of legal or eligibility significance, each with a definition, a legal source, and a stable reusable id. */
+const GLOSSARY_TERMS = [
+  { id: 'guiderails:ssp/approved-course', term: 'approved course', definition: 'A course on the approved-courses list maintained under the instrument.', legalSource: { instrument: INSTRUMENT_ID, provision: 's 12' } },
+  { id: 'guiderails:ssp/australian-resident', term: 'Australian resident', definition: 'A person who resides in Australia and holds a qualifying visa or citizenship.', legalSource: { instrument: INSTRUMENT_ID, provision: 's 7' } },
+  { id: 'guiderails:ssp/assessable-income', term: 'assessable income', definition: 'Fortnightly income counted for the payment, before tax, as defined by the instrument.', legalSource: { instrument: INSTRUMENT_ID, provision: 's 20' } },
+] as const;
 
 /** An accessible sign-in form: labelled control, described-by hint (2.2.1). */
 function signInForm(): string {
@@ -626,6 +727,105 @@ export function createFixtureServer(store: Store): http.Server {
         return json(res, 200, store.log);
       }
 
+      // ---- Machine surfaces referenced from the service description ----
+      if (req.method === 'GET' && path === '/api/glossary') {
+        // 2.3.1/2.3.2: terms resolve to definitions with a legal source and stable ids.
+        return json(res, 200, { surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED }, terms: GLOSSARY_TERMS });
+      }
+      if (req.method === 'GET' && path === '/api/status') {
+        // 1.4.1: planned outages announced with start and end times.
+        return json(res, 200, {
+          surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED },
+          current: 'operational',
+          plannedOutages: [
+            { surface: SERVICE_DESC_PATH, start: '2026-09-01T14:00:00Z', end: '2026-09-01T16:00:00Z', reason: 'Scheduled maintenance (fictional).' },
+          ],
+        });
+      }
+
+      // 4.4.3: subscribe to rule-change notifications.
+      if (req.method === 'POST' && path === '/api/rules/ssp/subscribe') {
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const callbackUrl = String((parsed.body as { callbackUrl?: unknown }).callbackUrl ?? '');
+        if (!/^https?:\/\//.test(callbackUrl)) {
+          return json(res, 422, { error: { code: 'INVALID_CALLBACK', message: 'Provide an http(s) callbackUrl to notify on rule changes.' } });
+        }
+        const id = `sub_${randomUUID()}`;
+        store.addRuleSubscription({ id, callbackUrl, instrument: INSTRUMENT_ID, at: now() });
+        return json(res, 201, { subscriptionId: id, instrument: INSTRUMENT_ID, notifiesOn: 'Any change to the rules instrument, with effective dates.', unsubscribe: `${origin}/api/rules/ssp/subscribe/${id}` });
+      }
+
+      // 3.5.1: prefill — the information the service already holds for the principal,
+      // offered so a journey need not re-ask for it.
+      const prefillMatch = /^\/api\/journeys\/(J[1234])\/prefill$/.exec(path);
+      if (req.method === 'GET' && prefillMatch) {
+        const jid = prefillMatch[1];
+        const principalId = principalOf(req, store);
+        if (!principalId) {
+          return json(res, 403, { error: { code: 'DELEGATION_REQUIRED', message: 'Prefill returns the principal\'s held information, so it requires a valid delegation naming them.' } });
+        }
+        const held = store.heldProfile(principalId);
+        const fields = JOURNEYS[jid].spec.steps.flatMap((s) => JOURNEYS[jid].fields[s.id] ?? []);
+        const prefill: Record<string, unknown> = {};
+        for (const f of fields) if (f.name in held) prefill[f.name] = held[f.name];
+        return json(res, 200, {
+          surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED },
+          journey: jid,
+          prefill,
+          note: 'These values are already held for you; confirm or amend rather than re-entering. Nothing is submitted by fetching a prefill.',
+        });
+      }
+
+      // 3.5.2: single structured submission — an alternative to stepwise completion,
+      // validated against the same published journey schema.
+      const bulkMatch = /^\/api\/journeys\/(J[123])\/submit$/.exec(path);
+      if (req.method === 'POST' && bulkMatch) {
+        const jid = bulkMatch[1];
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const all = (parsed.body as { values?: Record<string, Record<string, unknown>> }).values ?? {};
+        const errors: { step: string; field: string; constraint: string; message: string; remediation: string }[] = [];
+        for (const step of JOURNEYS[jid].spec.steps) {
+          const stepValues = all[step.id] ?? {};
+          for (const e of validateValues(JOURNEYS[jid].fields[step.id] ?? [], stepValues)) {
+            errors.push({ step: step.id, ...e });
+          }
+        }
+        if (errors.length > 0) return json(res, 422, { errors, note: 'The single submission is validated against the same schema as the stepwise path (3.5.2).' });
+        return json(res, 200, {
+          journey: jid,
+          accepted: true,
+          note: 'Validated against the published journey schema. In this fixture a valid structured submission is accepted; consequential effects still route through the confirmation and delegation checks of the stepwise path.',
+        });
+      }
+
+      // 5.5.3: the review-before-execute queue. An agent acting under a review-mode
+      // delegation queues a consequential action here; nothing executes until the
+      // principal approves.
+      if (path === '/api/review-queue') {
+        if (req.method === 'POST') {
+          const parsed = await readJsonBody(req);
+          if (!parsed.ok) return malformed(res, parsed.message);
+          const b = parsed.body as { delegationId?: string; actionId?: string; values?: Record<string, unknown> };
+          const delegation = store.delegation(b.delegationId);
+          if (!delegation || delegation.status !== 'active') {
+            return json(res, 403, { error: { code: 'DELEGATION_MISSING', message: 'The review queue requires an active delegation.' } });
+          }
+          if (!delegation.reviewBeforeExecute) {
+            return json(res, 409, { error: { code: 'NOT_REVIEW_MODE', message: 'This delegation is not in review-before-execute mode; consequential actions execute directly through the journey tool path.' } });
+          }
+          const id = `rev_${randomUUID()}`;
+          store.queueForReview({ id, principalId: delegation.principalId, agentId: delegation.agentId, actionId: String(b.actionId ?? ''), values: b.values ?? {}, at: now() });
+          return json(res, 202, { reviewId: id, status: 'awaiting-principal', note: 'Queued. Nothing has executed; the principal must approve this action before it takes effect (5.5.3).' });
+        }
+        if (req.method === 'GET') {
+          const principalId = principalOf(req, store);
+          if (!principalId) return json(res, 403, { error: { code: 'DELEGATION_REQUIRED', message: 'The review queue belongs to the principal.' } });
+          return json(res, 200, { queue: store.reviewQueueFor(principalId) });
+        }
+      }
+
       // ---- Rules (Principle 4) ----
       if (req.method === 'GET' && path === '/api/rules/ssp/changelog') {
         return json(res, 200, {
@@ -667,6 +867,17 @@ export function createFixtureServer(store: Store): http.Server {
           });
           return json(res, 200, {
             determinationId: id,
+            // 4.5.1: the determination is labelled binding/indicative and states
+            // what would make it binding — carried on `determinationStatus` and
+            // `bindingCondition` in the spread determination below.
+            // 4.3.1: enumerate the rule path and the inputs that produced it, in
+            // machine-readable and plain-language forms.
+            rulePath: {
+              sectionsApplied: determination.governingReason.sections,
+              inputs: body.circumstances ?? {},
+              plainLanguage: determination.governingReason.statement,
+              instrument: { id: determination.provenance.instrumentId, rulesVersion: determination.provenance.rulesVersion, effectiveDateApplied: determination.provenance.effectiveDateApplied },
+            },
             citeWhenActing: 'Present determinationId with a consequential action so the principal\'s audit record shows what you relied on (5.4.1). Doing so attributes your reliance, not this query (4.5.2).',
             ...determination,
           });

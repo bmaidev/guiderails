@@ -56,6 +56,12 @@ export interface Delegation {
   validFrom: string;
   validTo: string;
   status: DelegationStatus;
+  /**
+   * 5.5.3: when true, consequential actions under this delegation do not execute
+   * directly — they queue for the principal's approval (the review-before-execute
+   * mode). Optional; absent means the delegation executes in the normal way.
+   */
+  reviewBeforeExecute?: boolean;
 }
 
 export interface ConfirmationEvent {

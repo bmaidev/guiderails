@@ -39,7 +39,7 @@ const MODEL = join(REPO_ROOT, '02-model', 'MODEL.md');
 const MANIFEST = join(REPO_ROOT, '03-reference-implementation', 'coverage.json');
 
 const SURFACES = new Set(['story', 'machine-surface', 'behaviour', 'manual']);
-const STATUSES = new Set(['shown', 'covered', 'gap']);
+const STATUSES = new Set(['shown', 'covered', 'recorded', 'gap']);
 
 interface Entry {
   id: string;
@@ -83,6 +83,7 @@ test('every entry has a valid surface and status; shown implies a story', () => 
     ok(SURFACES.has(e.surface), `${e.id}: bad surface ${e.surface}`);
     ok(STATUSES.has(e.status), `${e.id}: bad status ${e.status}`);
     if (e.status === 'shown') strictEqual(e.surface, 'story', `${e.id}: shown must be a story`);
+    if (e.status === 'recorded') strictEqual(e.surface, 'manual', `${e.id}: recorded evidence is a manual/methodology artifact`);
     if (e.status === 'gap') strictEqual(e.evidence.length, 0, `${e.id}: a gap carries no evidence`);
     else ok(e.evidence.length > 0, `${e.id}: a non-gap must name evidence`);
   }
@@ -98,13 +99,16 @@ test('every non-gap names an evidence file that exists and mentions the criterio
   }
 });
 
-test('coverage summary (informational)', () => {
+test('coverage summary — every criterion has evidence, none is a gap', () => {
   const by = (s: string) => entries.filter((e) => e.status === s).length;
   const shown = by('shown');
   const covered = by('covered');
+  const recorded = by('recorded');
   const gap = by('gap');
-  strictEqual(shown + covered + gap, 56);
-  console.log(`coverage: ${shown} shown, ${covered} covered, ${gap} gap (of 56)`);
-  // Guard the headline the write-up quotes; bump deliberately as layers land.
-  ok(shown + covered === 31, `expected 31 with automated evidence, found ${shown + covered}`);
+  strictEqual(shown + covered + recorded + gap, 56);
+  console.log(`coverage: ${shown} shown, ${covered} covered, ${recorded} recorded, ${gap} gap (of 56)`);
+  // The demo harness is complete: every criterion carries evidence of some kind.
+  // 54 automated (10 browser-shown + 44 covered), 2 recorded (manual/methodology).
+  ok(shown + covered === 54, `expected 54 with automated evidence, found ${shown + covered}`);
+  strictEqual(gap, 0, `every criterion must carry evidence; ${gap} still gap`);
 });
