@@ -72,6 +72,8 @@ export const J1_Identity = stepStory({
   journeyId: 'J1', spec: J1_SPEC, fields: J1_FIELDS, stepId: 'identity',
   heading: 'Your identity and contact details',
   intro: 'We use these to identify you and to tell you about your claim.',
+  // 2.2.3: names and required-state are programmatic, not conveyed by colour or position alone.
+  criteria: ['2.2.1', '2.2.3', '3.1.1', '3.4.3'],
 });
 
 export const J1_Circumstances = stepStory({

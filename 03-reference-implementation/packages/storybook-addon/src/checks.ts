@@ -116,6 +116,36 @@ function check_2_2_1(root: DomElement, fields: FieldSpec[]): CriterionResult {
   return { criterion: '2.2.1', applicable: fields.length > 0, pass: failures.length === 0, failures };
 }
 
+/**
+ * 2.2.3: no control's meaning depends on visual position, colour or proximity
+ * alone. Decidably: every control carries a *programmatic* accessible name (an
+ * association, not mere DOM adjacency), and any required or invalid state it
+ * conveys is carried by a non-visual signal (aria-required / aria-invalid + a
+ * text node), not by colour alone.
+ */
+function check_2_2_3(root: DomElement, fields: FieldSpec[]): CriterionResult {
+  const failures: string[] = [];
+  for (const field of fields) {
+    const control = controlFor(root, field);
+    if (!control) { failures.push(`no control renders field "${field.name}"`); continue; }
+    if (!accessibleName(root, control)) {
+      failures.push(`"${field.name}" is named only by position/proximity — no programmatic label association`);
+    }
+    if (field.required) {
+      const req = control.getAttribute('aria-required') === 'true' || control.getAttribute('required') !== null;
+      if (!req) failures.push(`"${field.name}" is required but the state is not conveyed non-visually (aria-required)`);
+    }
+    if (control.getAttribute('aria-invalid') === 'true') {
+      const describedBy = control.getAttribute('aria-describedby');
+      const hasText = describedBy
+        ? describedBy.split(/\s+/).some((id) => (root.querySelector(`#${id}`)?.textContent ?? '').trim())
+        : false;
+      if (!hasText) failures.push(`"${field.name}" signals invalidity by colour alone — no associated error text`);
+    }
+  }
+  return { criterion: '2.2.3', applicable: fields.length > 0, pass: failures.length === 0, failures };
+}
+
 /** 2.2.2: any control marked invalid must point, via aria-describedby, at an error node carrying remediation text. */
 function check_2_2_2(root: DomElement, fields: FieldSpec[]): CriterionResult {
   const failures: string[] = [];
@@ -305,6 +335,7 @@ function check_5_6_3(root: DomElement, params: GuiderailsParameters): CriterionR
 const CHECKERS: Record<string, (root: DomElement, params: GuiderailsParameters) => CriterionResult> = {
   '2.2.1': (root, p) => check_2_2_1(root, p.fields),
   '2.2.2': (root, p) => check_2_2_2(root, p.fields),
+  '2.2.3': (root, p) => check_2_2_3(root, p.fields),
   '2.4.1': (root, p) => check_2_4_1(root, p),
   '2.4.2': (root, p) => check_2_4_2(root, p),
   '3.1.1': (root, p) => check_3_1_1(root, p),

@@ -171,3 +171,11 @@ test('5.6.3 requires third-party content to be programmatically distinct from op
   const undistinguished = '<section>Official guidance.</section><aside>Provider note: classes start Monday.</aside>';
   ok(!checkStory(render(undistinguished), p).pass, 'unmarked third-party content must fail');
 });
+
+test('2.2.3 passes when name+state are programmatic, fails on colour-only invalidity', () => {
+  const good = form('/x', identityFields, {}, [], 'Go');
+  ok(checkStory(render(good), { fields: identityFields, criteria: ['2.2.3'] }).pass, '2.2.3 passes a programmatically-labelled form');
+  // A control marked invalid with no associated error text signals by colour alone.
+  const colourOnly = render('<label for="email">Email</label><input name="email" id="email" required aria-required="true" aria-invalid="true">');
+  ok(!checkStory(colourOnly, { fields: [identityFields.find((f) => f.name === 'email')!], criteria: ['2.2.3'] }).pass, 'colour-only invalidity must fail 2.2.3');
+});

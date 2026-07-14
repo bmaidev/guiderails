@@ -13,7 +13,8 @@
     "status": {
       "shown": "Verified live in the browser by the Storybook criterion gate.",
       "covered": "Automated evidence exists (a named test), but not browser-visible.",
-      "gap": "No automated evidence yet."
+      "gap": "No automated evidence yet.",
+      "recorded": "Human/deployment or methodology evidence exists (a recorded artifact), not an automated check."
     }
   },
   "criteria": [
@@ -93,8 +94,10 @@
       "id": "1.5.1",
       "level": "AA",
       "surface": "manual",
-      "status": "gap",
-      "evidence": []
+      "status": "recorded",
+      "evidence": [
+        "03-reference-implementation/manual-evidence.md"
+      ]
     },
     {
       "id": "2.1.1",
@@ -127,8 +130,10 @@
       "id": "2.2.3",
       "level": "AA",
       "surface": "story",
-      "status": "gap",
-      "evidence": []
+      "status": "shown",
+      "evidence": [
+        "03-reference-implementation/storybook/src/agds.stories.tsx"
+      ]
     },
     {
       "id": "2.3.1",
@@ -494,8 +499,10 @@
       "id": "5.6.1",
       "level": "AA",
       "surface": "manual",
-      "status": "gap",
-      "evidence": []
+      "status": "recorded",
+      "evidence": [
+        "03-reference-implementation/manual-evidence.md"
+      ]
     },
     {
       "id": "5.6.2",
