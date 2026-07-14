@@ -6,7 +6,7 @@
 
 The Storybook app makes the "distribution channel, not a fork" claim visible: Guiderails journeys rendered through a real Australian government design system, with a per-story criterion gate checking the live DOM. It is persuasive, and it is a small slice of the standard. This document states plainly which of the 56 criteria the reference implementation demonstrates today, on which surface, and what it would take to demonstrate all 56 without overclaiming what any one surface can decide.
 
-The honest one-line summary, tracked live in [`coverage.json`](coverage.json): **the browser Storybook shows 9 criteria; automated evidence of some kind exists for 44; 12 have no automated evidence yet.** (At Layer 0 this read 4 / 31 / 25 — the original gap was two problems: missing evidence for 25 criteria, and *fragmented, unclaimed* evidence for the 31 already covered. Layers 1–2 closed most of both.)
+The honest one-line summary, tracked live in [`coverage.json`](coverage.json): **the browser Storybook shows 9 criteria; automated evidence of some kind exists for 53; 3 have no automated evidence yet** — and those three (1.5.1, 2.2.3, 5.6.1) are the ones a test cannot decide alone. (At Layer 0 this read 4 / 31 / 25 — the original gap was two problems: missing evidence for 25 criteria, and *fragmented, unclaimed* evidence for the 31 already covered. Layers 1–3 closed both.)
 
 ## What the number "56" is
 
@@ -22,7 +22,7 @@ Evidence is real but scattered across three places, none of which knows about th
 | **Conformant server tests** | `conformant/src/{server,j2-j3}.test.ts` — `node:test` assertions against the running fixture's routes, registers and behaviour | ~30 criteria referenced (see below) | No |
 | **Recorded manual a11y pass** | `conformant/src/a11y.test.ts` plus the manual WCAG 2.2 AA audit | 2.1.1 | No |
 
-Since Layer 0 a fourth place now carries evidence — `conformant/src/machine-surface.test.ts`, the Layer-2 validator over the served machine surfaces (glossary, documents, workflow, rate limits, status, determination labelling). The union is **44 of 56** with automated evidence (9 browser-shown). Only the Storybook row is what a reviewer sees in a browser, which is why "how many are in the Storybook" and "how many are demonstrated" have different answers.
+Since Layer 0, two more places carry evidence: `conformant/src/machine-surface.test.ts` (the Layer-2 validator over the served machine surfaces — glossary, documents, workflow, rate limits, status, determination labelling) and `conformant/src/conformance-behaviour.test.ts` (the Layer-3 behavioural scenarios — prefill, single submission, rule-path, past-date determination, rule-change subscription, principal-only enforcement, review-before-execute). The union is **53 of 56** with automated evidence (9 browser-shown). Only the Storybook row is what a reviewer sees in a browser, which is why "how many are in the Storybook" and "how many are demonstrated" have different answers.
 
 ## The four evidence surfaces, and why Storybook is only one
 
@@ -64,21 +64,21 @@ Status: ✅ shown live in the browser · 🟩 automated evidence exists (server/
 | 2.6.2 | AA | Surface | 🟩 |
 | 3.1.1 | AA | Behaviour + Story | ✅ |
 | 3.1.2 | AAA | Surface | 🟩 |
-| 3.2.1 | AA | Behaviour / Manual | ⬜ |
-| 3.3.1 | A | Behaviour | ⬜ |
+| 3.2.1 | AA | Behaviour / Manual | 🟩 |
+| 3.3.1 | A | Behaviour | 🟩 |
 | 3.3.2 | AA | Behaviour + Surface | 🟩 |
 | 3.4.1 | A | Behaviour | 🟩 |
 | 3.4.2 | AA | Behaviour | 🟩 |
 | 3.4.3 | A | Story + Surface | ✅ |
-| 3.5.1 | AA | Behaviour | ⬜ |
-| 3.5.2 | AAA | Behaviour | ⬜ |
+| 3.5.1 | AA | Behaviour | 🟩 |
+| 3.5.2 | AAA | Behaviour | 🟩 |
 | 4.1.1 | AA | Behaviour | 🟩 |
 | 4.1.2 | A | Surface / Manual | 🟩 |
 | 4.2.1 | AA | Behaviour | 🟩 |
-| 4.3.1 | AAA | Behaviour | ⬜ |
-| 4.4.1 | AA | Behaviour | ⬜ |
+| 4.3.1 | AAA | Behaviour | 🟩 |
+| 4.4.1 | AA | Behaviour | 🟩 |
 | 4.4.2 | AA | Surface | 🟩 |
-| 4.4.3 | AAA | Behaviour | ⬜ |
+| 4.4.3 | AAA | Behaviour | 🟩 |
 | 4.5.1 | A | Behaviour + Surface | 🟩 |
 | 4.5.2 | A | Behaviour | 🟩 |
 | 5.1.1 | A | Behaviour | 🟩 |
@@ -88,25 +88,21 @@ Status: ✅ shown live in the browser · 🟩 automated evidence exists (server/
 | 5.2.1 | A | Story | ✅ |
 | 5.3.1 | A | Behaviour + Story | 🟩 |
 | 5.3.2 | A | Behaviour | 🟩 |
-| 5.3.3 | A | Behaviour | ⬜ |
+| 5.3.3 | A | Behaviour | 🟩 |
 | 5.4.1 | AA | Behaviour | 🟩 |
 | 5.4.2 | AA | Behaviour / Manual | 🟩 |
 | 5.5.1 | A | Behaviour | 🟩 |
 | 5.5.2 | AA | Behaviour | 🟩 |
-| 5.5.3 | AAA | Behaviour | ⬜ |
+| 5.5.3 | AAA | Behaviour | 🟩 |
 | 5.6.1 | AA | Manual / Behaviour | ⬜ |
 | 5.6.2 | A | Story (parity oracle) | ✅ |
 | 5.6.3 | AA | Story | ✅ |
 
-### The 12 with no automated evidence yet
+### The 3 with no automated evidence yet
 
-- **Principle 1 (1):** 1.5.1
-- **Principle 2 (1):** 2.2.3
-- **Principle 3 (4):** 3.2.1, 3.3.1, 3.5.1, 3.5.2
-- **Principle 4 (3):** 4.3.1, 4.4.1, 4.4.3
-- **Principle 5 (3):** 5.3.3, 5.5.3, 5.6.1
-
-All but 2.2.3 (a rendering criterion for Layer 1's later pass) and 1.5.1/5.6.1 (Manual, Layer 4) are behavioural — Layer 3.
+- **2.2.3 (AA, Story):** meaning not conveyed by position/colour/proximity alone — a rendering criterion for a later Storybook pass.
+- **1.5.1 (AA, Manual):** the service description is served from the authority's verified domain and cross-referenced from a government register — a deployment/domain fact, not decidable from the fixture (Layer 4).
+- **5.6.1 (AA, Manual):** agent service levels are no less favourable than equivalent human ones — a comparison that needs a methodology round, not a single test (Layer 4).
 
 ## How to demonstrate all 56
 
@@ -124,9 +120,9 @@ Done: added checkers and browser-verified stories (`storybook/src/journey-surfac
 
 Added the artifacts the Surface criteria need to the conformant service description — a glossary with legal sources and stable ids (2.3.1, 2.3.2), issued documents and evidence rules (2.5.1, 2.5.2), a per-journey machine-readable workflow (3.1.2), published agent rate limits (3.3.2), a `/api/status` surface announcing planned outages with start/end times (1.4.1), an eligibility-guidance non-authoritative flag (4.1.2), and a binding/indicative disposition on determinations (4.5.1) — plus a `/api/glossary` endpoint so no discovery URL is dead. `conformant/src/machine-surface.test.ts` validates each against the running service, closing twelve gaps (1.1.1, 1.3.1, 1.4.1, 2.3.1, 2.3.2, 2.5.1, 2.5.2, 3.1.2, 3.3.2, 4.1.2, 4.4.2, 4.5.1). A browsable "machine surface" Storybook section that renders these artifacts is a later nicety; the validation itself is the evidence.
 
-### Layer 3 — behavioural conformance suite (~24)
+### Layer 3 — behavioural conformance suite (built)
 
-Promote the scattered `conformant/*.test.ts` assertions into a named, per-criterion scenario suite under `04-assurance/harness/`: submit-twice (3.4.1), interrupt-resume (3.4.2), act-without-delegation (5.1.1), self-widening delegation refused (5.1.3), revoke-then-act (5.5.1), confirmation gating (5.3.x), principal-only enforcement (5.3.3), past-date determination (4.4.1), hypothetical-creates-no-record (4.5.2), rule-path enumeration (4.3.1). Most of the ✅/🟩 Behaviour rows already have an assertion — this layer *names and claims* them per criterion and fills 3.3.x, 3.5.x, 4.3.1, 4.4.x, 5.3.3, 5.5.3.
+`conformant/src/conformance-behaviour.test.ts` closes the nine behavioural gaps with named per-criterion scenarios against the running service, adding the fixture surfaces each needs: tool-contract stability with a deprecation notice period (3.2.1), no challenge-gating of an essential journey (3.3.1), prefill of held information (3.5.1, `/api/journeys/{j}/prefill`), a single structured submission validated against the journey schema (3.5.2, `/api/journeys/{j}/submit`), rule-path-and-inputs enumeration on determinations (4.3.1), a past supplied effective date (4.4.1), rule-change subscription (4.4.3, `/api/rules/ssp/subscribe`), principal-only enforcement against any delegation (5.3.3), and a review-before-execute delegation mode that queues actions for the principal (5.5.3, `/api/review-queue`). The many ✅/🟩 Behaviour rows already covered by `server.test.ts` / `j2-j3.test.ts` (3.4.1, 3.4.2, 5.1.x, 5.3.x, 5.5.x, …) keep their existing evidence. The behavioural suite lives with the conformant fixture rather than `04-assurance/harness` so it exercises the service through the same in-process harness the other fixture tests use; the benchmark harness remains the measurement layer, not the conformance-evidence layer.
 
 ### Layer 4 — recorded manual & methodology evidence (~5)
 
@@ -141,3 +137,4 @@ When complete, the claim is not "Storybook proves conformance." It is: *every cr
 - **2026-07-14** — Created. Coverage baseline: 4 browser-shown, 31 with automated evidence, 25 gaps. Four-layer demo strategy proposed. Layer 0 built: machine-readable `coverage.json` + the `coverage-check` CI validator; formalisation proposed as DECISIONS.md D-022.
 - **2026-07-15** — Layer 1 built: 2.4.1, 2.4.2, 5.2.1, 5.6.2, 5.6.3 lifted into browser-verified stories (9 shown; 32 with automated evidence; 24 gaps).
 - **2026-07-15** — Layer 2 built: added the glossary/documents/evidence/workflow/rate-limit/status/determination-label artifacts to the conformant fixture and a machine-surface validator; twelve Surface criteria now covered (9 shown; 44 with automated evidence; 12 gaps).
+- **2026-07-15** — Layer 3 built: added prefill, single-submission, rule-subscription and review-before-execute surfaces plus rule-path enumeration, and a behavioural conformance suite; nine behavioural criteria now covered (9 shown; 53 with automated evidence; 3 gaps — 1.5.1, 2.2.3, 5.6.1).

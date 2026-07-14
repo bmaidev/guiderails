@@ -106,6 +106,6 @@ test('coverage summary (informational)', () => {
   strictEqual(shown + covered + gap, 56);
   console.log(`coverage: ${shown} shown, ${covered} covered, ${gap} gap (of 56)`);
   // Guard the headline the write-up quotes; bump deliberately as layers land.
-  // Layer 0 baseline: 31. Layer 1: 32 (5.6.2). Layer 2: 44 (12 surface criteria).
-  ok(shown + covered === 44, `expected 44 with automated evidence, found ${shown + covered}`);
+  // Layer 0: 31. Layer 1: 32 (5.6.2). Layer 2: 44 (12 surface). Layer 3: 53 (9 behavioural).
+  ok(shown + covered === 53, `expected 53 with automated evidence, found ${shown + covered}`);
 });

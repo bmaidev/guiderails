@@ -171,6 +171,10 @@ function serviceDescription(origin: string): Record<string, unknown> {
       delegations: `${origin}/api/delegations`,
       suspendOrRevoke: `${origin}/api/delegations/{delegationId}/{suspend|revoke|reinstate}`,
       note: 'Revocation is terminal and takes effect before any further consequential action.',
+      // 5.5.3: a delegation may be set to review-before-execute; its agent's
+      // consequential actions queue here for the principal's approval.
+      reviewQueue: `${origin}/api/review-queue`,
+      reviewBeforeExecute: 'Set on a delegation so that every consequential action it authorises queues for your approval before it executes.',
     },
     // 5.3.2: how a designated action is confirmed. Agents redeem; only the principal obtains.
     confirmationChannel: {
@@ -179,9 +183,26 @@ function serviceDescription(origin: string): Record<string, unknown> {
       redeemedBy: 'the agent, once, for the one action named in the token',
       note: 'An interaction within an agent-driven session is not a confirmation event.',
     },
+    // 3.2.1: declared tool contracts are stable across releases within a major
+    // version; a deprecation carries a published notice period before removal.
+    toolContracts: {
+      majorVersion: 1,
+      stabilityPolicy: 'Within major version 1, declared tool inputs and outputs do not change incompatibly; additive change only.',
+      deprecationNoticePeriodDays: 90,
+      deprecations: [],
+    },
+    // 3.5.1 / 3.5.2: prefill of held information, and a single structured submission
+    // as an alternative to stepwise completion.
+    completion: {
+      prefill: `${origin}/api/journeys/{journeyId}/prefill`,
+      structuredSubmission: `${origin}/api/journeys/{journeyId}/submit`,
+      note: 'Fetch prefill for information already held; POST a whole-journey structured body to /submit instead of completing step by step.',
+    },
     rules: {
       determination: `${origin}/api/rules/ssp/determination`,
       changelog: `${origin}/api/rules/ssp/changelog`,
+      // 4.4.3: register to be notified of rule changes.
+      subscribe: `${origin}/api/rules/ssp/subscribe`,
       instrument: { id: INSTRUMENT_ID, version: RULES_VERSION, commencement: INSTRUMENT_COMMENCEMENT },
       // 3.1.1: a declared tool describes its input. An endpoint that accepts one
       // envelope while its documentation names only the fields inside it is a
@@ -722,6 +743,89 @@ export function createFixtureServer(store: Store): http.Server {
         });
       }
 
+      // 4.4.3: subscribe to rule-change notifications.
+      if (req.method === 'POST' && path === '/api/rules/ssp/subscribe') {
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const callbackUrl = String((parsed.body as { callbackUrl?: unknown }).callbackUrl ?? '');
+        if (!/^https?:\/\//.test(callbackUrl)) {
+          return json(res, 422, { error: { code: 'INVALID_CALLBACK', message: 'Provide an http(s) callbackUrl to notify on rule changes.' } });
+        }
+        const id = `sub_${randomUUID()}`;
+        store.addRuleSubscription({ id, callbackUrl, instrument: INSTRUMENT_ID, at: now() });
+        return json(res, 201, { subscriptionId: id, instrument: INSTRUMENT_ID, notifiesOn: 'Any change to the rules instrument, with effective dates.', unsubscribe: `${origin}/api/rules/ssp/subscribe/${id}` });
+      }
+
+      // 3.5.1: prefill — the information the service already holds for the principal,
+      // offered so a journey need not re-ask for it.
+      const prefillMatch = /^\/api\/journeys\/(J[1234])\/prefill$/.exec(path);
+      if (req.method === 'GET' && prefillMatch) {
+        const jid = prefillMatch[1];
+        const principalId = principalOf(req, store);
+        if (!principalId) {
+          return json(res, 403, { error: { code: 'DELEGATION_REQUIRED', message: 'Prefill returns the principal\'s held information, so it requires a valid delegation naming them.' } });
+        }
+        const held = store.heldProfile(principalId);
+        const fields = JOURNEYS[jid].spec.steps.flatMap((s) => JOURNEYS[jid].fields[s.id] ?? []);
+        const prefill: Record<string, unknown> = {};
+        for (const f of fields) if (f.name in held) prefill[f.name] = held[f.name];
+        return json(res, 200, {
+          surface: { version: SURFACE_VERSION, lastModified: SURFACE_LAST_MODIFIED },
+          journey: jid,
+          prefill,
+          note: 'These values are already held for you; confirm or amend rather than re-entering. Nothing is submitted by fetching a prefill.',
+        });
+      }
+
+      // 3.5.2: single structured submission — an alternative to stepwise completion,
+      // validated against the same published journey schema.
+      const bulkMatch = /^\/api\/journeys\/(J[123])\/submit$/.exec(path);
+      if (req.method === 'POST' && bulkMatch) {
+        const jid = bulkMatch[1];
+        const parsed = await readJsonBody(req);
+        if (!parsed.ok) return malformed(res, parsed.message);
+        const all = (parsed.body as { values?: Record<string, Record<string, unknown>> }).values ?? {};
+        const errors: { step: string; field: string; constraint: string; message: string; remediation: string }[] = [];
+        for (const step of JOURNEYS[jid].spec.steps) {
+          const stepValues = all[step.id] ?? {};
+          for (const e of validateValues(JOURNEYS[jid].fields[step.id] ?? [], stepValues)) {
+            errors.push({ step: step.id, ...e });
+          }
+        }
+        if (errors.length > 0) return json(res, 422, { errors, note: 'The single submission is validated against the same schema as the stepwise path (3.5.2).' });
+        return json(res, 200, {
+          journey: jid,
+          accepted: true,
+          note: 'Validated against the published journey schema. In this fixture a valid structured submission is accepted; consequential effects still route through the confirmation and delegation checks of the stepwise path.',
+        });
+      }
+
+      // 5.5.3: the review-before-execute queue. An agent acting under a review-mode
+      // delegation queues a consequential action here; nothing executes until the
+      // principal approves.
+      if (path === '/api/review-queue') {
+        if (req.method === 'POST') {
+          const parsed = await readJsonBody(req);
+          if (!parsed.ok) return malformed(res, parsed.message);
+          const b = parsed.body as { delegationId?: string; actionId?: string; values?: Record<string, unknown> };
+          const delegation = store.delegation(b.delegationId);
+          if (!delegation || delegation.status !== 'active') {
+            return json(res, 403, { error: { code: 'DELEGATION_MISSING', message: 'The review queue requires an active delegation.' } });
+          }
+          if (!delegation.reviewBeforeExecute) {
+            return json(res, 409, { error: { code: 'NOT_REVIEW_MODE', message: 'This delegation is not in review-before-execute mode; consequential actions execute directly through the journey tool path.' } });
+          }
+          const id = `rev_${randomUUID()}`;
+          store.queueForReview({ id, principalId: delegation.principalId, agentId: delegation.agentId, actionId: String(b.actionId ?? ''), values: b.values ?? {}, at: now() });
+          return json(res, 202, { reviewId: id, status: 'awaiting-principal', note: 'Queued. Nothing has executed; the principal must approve this action before it takes effect (5.5.3).' });
+        }
+        if (req.method === 'GET') {
+          const principalId = principalOf(req, store);
+          if (!principalId) return json(res, 403, { error: { code: 'DELEGATION_REQUIRED', message: 'The review queue belongs to the principal.' } });
+          return json(res, 200, { queue: store.reviewQueueFor(principalId) });
+        }
+      }
+
       // ---- Rules (Principle 4) ----
       if (req.method === 'GET' && path === '/api/rules/ssp/changelog') {
         return json(res, 200, {
@@ -763,10 +867,17 @@ export function createFixtureServer(store: Store): http.Server {
           });
           return json(res, 200, {
             determinationId: id,
-            // 4.5.1: a determination on declared circumstances is indicative, and
-            // states what would make it binding — an assessment of a lodged claim.
-            disposition: 'indicative',
-            bindingWhen: 'A claim is lodged (journey J1) and assessed on your actual, evidenced circumstances.',
+            // 4.5.1: the determination is labelled binding/indicative and states
+            // what would make it binding — carried on `determinationStatus` and
+            // `bindingCondition` in the spread determination below.
+            // 4.3.1: enumerate the rule path and the inputs that produced it, in
+            // machine-readable and plain-language forms.
+            rulePath: {
+              sectionsApplied: determination.governingReason.sections,
+              inputs: body.circumstances ?? {},
+              plainLanguage: determination.governingReason.statement,
+              instrument: { id: determination.provenance.instrumentId, rulesVersion: determination.provenance.rulesVersion, effectiveDateApplied: determination.provenance.effectiveDateApplied },
+            },
             citeWhenActing: 'Present determinationId with a consequential action so the principal\'s audit record shows what you relied on (5.4.1). Doing so attributes your reliance, not this query (4.5.2).',
             ...determination,
           });

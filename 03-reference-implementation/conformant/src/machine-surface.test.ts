@@ -129,6 +129,6 @@ test('4.5.1: a determination is labelled binding or indicative and states what w
     body: JSON.stringify({ circumstances: { ageYears: 20, residencyWeeks: 30, studyLoadEFT: 0.8, courseWeeks: 12, enrolmentStatus: 'offer', fortnightlyIncome: 1500 } }),
   });
   const d = await r.json();
-  assert.ok(['binding', 'indicative'].includes(d.disposition), '4.5.1: the determination is labelled');
-  if (d.disposition === 'indicative') assert.ok(d.bindingWhen && d.bindingWhen.length > 0, '4.5.1: an indicative determination states what would make it binding');
+  assert.ok(['binding', 'indicative'].includes(d.determinationStatus), '4.5.1: the determination is labelled binding or indicative');
+  if (d.determinationStatus === 'indicative') assert.ok(d.bindingCondition && d.bindingCondition.length > 0, '4.5.1: an indicative determination states what would make it binding');
 });
