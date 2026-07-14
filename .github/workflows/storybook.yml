@@ -1,0 +1,36 @@
+name: Storybook
+
+# The browser layer: builds the Storybook app and runs the Guiderails per-story
+# criterion gate (and axe) over live AgDS renders in Chromium via the Playwright
+# test-runner. Separate from ci.yml's fast per-package matrix because it installs
+# a browser and a full Storybook toolchain.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-storybook:
+    name: storybook (browser gate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 03-reference-implementation/storybook
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install
+        # npm install, not npm ci: this toolchain pulls platform-specific native
+        # binaries (esbuild, rollup, playwright) whose optional deps a macOS-
+        # generated lockfile cannot fully enumerate for Linux. Versions stay
+        # pinned in package.json; the fast matrix jobs keep npm ci.
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build Storybook
+        run: npm run build
+      - name: Run the criterion gate over live AgDS renders
+        run: npm run test-storybook:ci

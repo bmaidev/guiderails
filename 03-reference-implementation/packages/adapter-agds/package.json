@@ -7,8 +7,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test \"src/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit",
-    "typecheck:react": "tsc --noEmit -p tsconfig.react.json"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.3",

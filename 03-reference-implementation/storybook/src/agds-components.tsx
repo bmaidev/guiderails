@@ -26,9 +26,9 @@ import React from 'react';
 import { TextInput } from '@ag.ds-next/react/text-input';
 import { Select } from '@ag.ds-next/react/select';
 import { Checkbox } from '@ag.ds-next/react/checkbox';
-import type { FieldSpec } from '../../agent-surface/src/index.ts';
-import { agdsFieldBinding } from './adapter.ts';
-import type { RenderCtx } from './contract.ts';
+import type { FieldSpec } from '../../packages/agent-surface/src/index.ts';
+import { agdsFieldBinding } from '../../packages/adapter-agds/src/adapter.ts';
+import type { RenderCtx } from '../../packages/adapter-agds/src/contract.ts';
 
 /** Render one Guiderails field through AgDS. AgDS supplies pixels; the adapter supplies the machine meaning. */
 export function GuiderailsAgdsField({ field, ctx }: { field: FieldSpec; ctx?: RenderCtx }): React.ReactElement {
