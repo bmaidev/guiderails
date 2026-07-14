@@ -22,7 +22,14 @@
  * `parameters.a11y.test` — `'error'` fails CI, `'todo'` warns, `'off'` skips.
  */
 
-import type { FieldSpec, StepSpec, ConsequentialActionSpec } from '../../agent-surface/src/index.ts';
+import type {
+  FieldSpec,
+  StepSpec,
+  ConsequentialActionSpec,
+  JourneySpec,
+  JourneyProgress,
+  ConsequentialEvent,
+} from '../../agent-surface/src/index.ts';
 
 export interface GuiderailsParameters {
   /** The FieldSpecs the story's component renders — the authoritative source of truth. */
@@ -31,6 +38,19 @@ export interface GuiderailsParameters {
   journeyId?: string;
   step?: StepSpec;
   action?: ConsequentialActionSpec;
+  /**
+   * The journey and the progress record, for 2.4.1's step-exposure check: the
+   * checker recomputes the authoritative journey-state surface from these and
+   * asserts the rendered rail exposes it programmatically.
+   */
+  journeySpec?: JourneySpec;
+  journeyProgress?: JourneyProgress;
+  /** The consequential event a receipt story renders, for 2.4.2. */
+  receipt?: ConsequentialEvent;
+  /** The attribution a record carries, for 5.2.1 (agent-originated submissions flagged). */
+  attribution?: { agentOriginated: boolean; agentId?: string };
+  /** True when the story renders third-party/user-generated content, for 5.6.3. */
+  thirdPartyContent?: boolean;
   /** P.G.C ids this story claims to carry, e.g. ['2.2.1','2.2.2','3.1.1']. */
   criteria: string[];
   /** Three-state gate, mirroring parameters.a11y.test. Default 'error'. */

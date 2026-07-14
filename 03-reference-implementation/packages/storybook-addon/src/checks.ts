@@ -29,7 +29,7 @@
  * feed it a DOM and report its verdict.
  */
 
-import { getControlAttributes, toModelContextTool, type FieldSpec } from '../../agent-surface/src/index.ts';
+import { getControlAttributes, toModelContextTool, journeyState, type FieldSpec } from '../../agent-surface/src/index.ts';
 import type { GuiderailsParameters } from './parameters.ts';
 
 /** The minimal DOM surface the engine uses, so it needs neither lib.dom nor jsdom types. */
@@ -170,11 +170,148 @@ function check_3_4_3(params: GuiderailsParameters): CriterionResult {
   return { criterion: '3.4.3', applicable: true, pass: failures.length === 0, failures };
 }
 
+/**
+ * 2.4.1: a multi-step journey exposes programmatically the current step, the set
+ * of remaining steps, unsatisfied prerequisites, and each step's safe/consequential
+ * classification. Recomputes the authoritative state surface from the spec and
+ * checks the rendered rail carries it in `data-gr-*` attributes — DOM against spec.
+ */
+function check_2_4_1(root: DomElement, params: GuiderailsParameters): CriterionResult {
+  if (!params.journeySpec || !params.journeyProgress) {
+    return { criterion: '2.4.1', applicable: false, pass: true, failures: [] };
+  }
+  const failures: string[] = [];
+  const state = journeyState(params.journeySpec, params.journeyProgress);
+  const rail = root.querySelector('[data-gr-journey-state]');
+  if (!rail) {
+    return { criterion: '2.4.1', applicable: true, pass: false, failures: ['no [data-gr-journey-state] region exposes the journey state'] };
+  }
+  if ((rail.getAttribute('data-gr-current') ?? null) !== (state.currentStep ?? '')) {
+    failures.push(`current step exposed as "${rail.getAttribute('data-gr-current')}", expected "${state.currentStep ?? ''}"`);
+  }
+  const byId = (id: string) => rail.querySelector(`[data-gr-step="${id}"]`);
+  const done = new Set(params.journeyProgress.completedSteps);
+  for (const step of params.journeySpec.steps) {
+    const el = byId(step.id);
+    if (!el) { failures.push(`step "${step.id}" is not exposed`); continue; }
+    const expectedStatus = done.has(step.id) ? 'done' : step.id === state.currentStep ? 'doing' : 'todo';
+    if (el.getAttribute('data-gr-step-status') !== expectedStatus) {
+      failures.push(`step "${step.id}" status "${el.getAttribute('data-gr-step-status')}", expected "${expectedStatus}"`);
+    }
+    if (el.getAttribute('data-gr-step-kind') !== step.kind) {
+      failures.push(`step "${step.id}" kind "${el.getAttribute('data-gr-step-kind')}", expected "${step.kind}"`);
+    }
+  }
+  // Every unsatisfied prerequisite the surface reports must be exposed on its step.
+  for (const { step, missing } of state.prerequisitesUnsatisfied) {
+    const exposed = (byId(step)?.getAttribute('data-gr-step-requires') ?? '').split(/\s+/).filter(Boolean);
+    for (const m of missing) {
+      if (!exposed.includes(m)) failures.push(`step "${step}" does not expose unsatisfied prerequisite "${m}"`);
+    }
+  }
+  return { criterion: '2.4.1', applicable: true, pass: failures.length === 0, failures };
+}
+
+/**
+ * 2.4.2: after a consequential action, the journey states programmatically that
+ * it occurred, when, and its reference identifier. Checks the rendered receipt
+ * against the expected event.
+ */
+function check_2_4_2(root: DomElement, params: GuiderailsParameters): CriterionResult {
+  if (!params.receipt) return { criterion: '2.4.2', applicable: false, pass: true, failures: [] };
+  const failures: string[] = [];
+  const receipt = root.querySelector('[data-gr-receipt]');
+  if (!receipt) {
+    return { criterion: '2.4.2', applicable: true, pass: false, failures: ['no [data-gr-receipt] region states the action occurred'] };
+  }
+  if (receipt.getAttribute('data-gr-occurred') !== 'true') failures.push('receipt does not state the action occurred');
+  const checkAttr = (attr: string, expected: string, label: string) => {
+    if (receipt.getAttribute(attr) !== expected) failures.push(`receipt ${label} "${receipt.getAttribute(attr)}", expected "${expected}"`);
+  };
+  checkAttr('data-gr-action', params.receipt.actionId, 'action');
+  checkAttr('data-gr-reference', params.receipt.reference, 'reference');
+  checkAttr('data-gr-at', params.receipt.at, 'timestamp');
+  // The reference must also be human-visible, not attribute-only.
+  if (!(receipt.textContent ?? '').includes(params.receipt.reference)) {
+    failures.push('the reference identifier is not stated in visible text');
+  }
+  return { criterion: '2.4.2', applicable: true, pass: failures.length === 0, failures };
+}
+
+/** 5.2.1: an agent-originated submission is flagged as such in the rendered record. */
+function check_5_2_1(root: DomElement, params: GuiderailsParameters): CriterionResult {
+  if (!params.attribution) return { criterion: '5.2.1', applicable: false, pass: true, failures: [] };
+  const failures: string[] = [];
+  const badge = root.querySelector('[data-gr-attribution]');
+  if (!badge) {
+    return { criterion: '5.2.1', applicable: true, pass: false, failures: ['no [data-gr-attribution] flag on the record'] };
+  }
+  const expected = params.attribution.agentOriginated ? 'agent' : 'principal';
+  if (badge.getAttribute('data-gr-attribution') !== expected) {
+    failures.push(`attribution "${badge.getAttribute('data-gr-attribution')}", expected "${expected}"`);
+  }
+  if (params.attribution.agentOriginated) {
+    if (params.attribution.agentId && badge.getAttribute('data-gr-agent-id') !== params.attribution.agentId) {
+      failures.push(`agent id "${badge.getAttribute('data-gr-agent-id')}", expected "${params.attribution.agentId}"`);
+    }
+    if (!/agent/i.test(badge.textContent ?? '')) failures.push('agent origination is not stated in visible text');
+  }
+  return { criterion: '5.2.1', applicable: true, pass: failures.length === 0, failures };
+}
+
+/**
+ * 5.6.2: no agent-facing surface presents an affordance whose effect contradicts
+ * the human-facing meaning of the same step. The step's primary affordance carries
+ * a machine `data-gr-effect`, and the agent's-eye view carries `data-gr-destructive`;
+ * both must equal the spec-derived hint, so the two surfaces cannot disagree.
+ */
+function check_5_6_2(root: DomElement, params: GuiderailsParameters): CriterionResult {
+  if (!params.step) return { criterion: '5.6.2', applicable: false, pass: true, failures: [] };
+  const failures: string[] = [];
+  const tool = toModelContextTool(params.journeyId ?? 'J', params.step, params.fields, params.action);
+  const expectedEffect = tool.annotations.destructiveHint ? 'consequential' : 'safe';
+  const affordance = root.querySelector('[data-gr-effect]');
+  const agentView = root.querySelector('[data-gr-agent-view]');
+  if (!affordance) failures.push('the primary affordance carries no machine effect marker (data-gr-effect)');
+  else if (affordance.getAttribute('data-gr-effect') !== expectedEffect) {
+    failures.push(`affordance effect "${affordance.getAttribute('data-gr-effect')}" contradicts the step's "${expectedEffect}"`);
+  }
+  if (!agentView) failures.push('no agent-view marker (data-gr-agent-view) to compare against');
+  else if (agentView.getAttribute('data-gr-destructive') !== String(tool.annotations.destructiveHint)) {
+    failures.push(`agent-view destructiveHint "${agentView.getAttribute('data-gr-destructive')}" contradicts the spec's "${tool.annotations.destructiveHint}"`);
+  }
+  return { criterion: '5.6.2', applicable: true, pass: failures.length === 0, failures };
+}
+
+/**
+ * 5.6.3: third-party or user-generated content rendered within a journey is
+ * programmatically distinguishable from the operator's own content. Checks the
+ * story marks such content with `data-gr-origin="third-party"`, distinct from the
+ * operator's regions.
+ */
+function check_5_6_3(root: DomElement, params: GuiderailsParameters): CriterionResult {
+  if (!params.thirdPartyContent) return { criterion: '5.6.3', applicable: false, pass: true, failures: [] };
+  const failures: string[] = [];
+  const thirdParty = Array.from(root.querySelectorAll('[data-gr-origin="third-party"]'));
+  const operator = Array.from(root.querySelectorAll('[data-gr-origin="operator"]'));
+  if (thirdParty.length === 0) failures.push('story renders third-party content but no [data-gr-origin="third-party"] region marks it');
+  if (operator.length === 0) failures.push('no [data-gr-origin="operator"] region to distinguish operator content from third-party');
+  for (const el of thirdParty) {
+    if (!(el.textContent ?? '').trim()) failures.push('a third-party region is marked but empty');
+  }
+  return { criterion: '5.6.3', applicable: true, pass: failures.length === 0, failures };
+}
+
 const CHECKERS: Record<string, (root: DomElement, params: GuiderailsParameters) => CriterionResult> = {
   '2.2.1': (root, p) => check_2_2_1(root, p.fields),
   '2.2.2': (root, p) => check_2_2_2(root, p.fields),
+  '2.4.1': (root, p) => check_2_4_1(root, p),
+  '2.4.2': (root, p) => check_2_4_2(root, p),
   '3.1.1': (root, p) => check_3_1_1(root, p),
   '3.4.3': (_root, p) => check_3_4_3(p),
+  '5.2.1': (root, p) => check_5_2_1(root, p),
+  '5.6.2': (root, p) => check_5_6_2(root, p),
+  '5.6.3': (root, p) => check_5_6_3(root, p),
 };
 
 /** Which criteria this engine can check per story. A claimed criterion outside this set is a config error. */

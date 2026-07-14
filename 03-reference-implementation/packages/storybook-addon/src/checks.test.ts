@@ -26,7 +26,7 @@ import { ok, strictEqual } from 'node:assert/strict';
 import { test } from 'node:test';
 import { JSDOM } from 'jsdom';
 import { form } from '../../../conformant/src/html.ts';
-import { J1_FIELDS, J1_SPEC } from '../../../conformant/src/journeys.ts';
+import { J1_FIELDS, J1_SPEC, J2_SPEC } from '../../../conformant/src/journeys.ts';
 import { CA_REGISTER } from '../../../conformant/src/j1.ts';
 import { checkStory, type DomElement } from './checks.ts';
 import type { GuiderailsParameters } from './parameters.ts';
@@ -111,4 +111,63 @@ test('the gate catches an agent-legibility regression a story would introduce', 
   const root = render(brokenLabelStripped);
   const report = checkStory(root, { fields: identityFields, journeyId: 'J1', criteria: ['2.2.1'], test: 'error' });
   ok(!report.pass, 'a story that lost its labels must fail the 2.2.1 gate');
+});
+
+// ---- Layer 1: journey-state, receipt, attribution, parity, third-party ----
+
+const J2 = J2_SPEC;
+const j2Progress = { completedSteps: ['period'], consequentialEvents: [] };
+
+test('2.4.1 passes when the rail exposes current/remaining/kind/prerequisites, fails when it does not', () => {
+  // period done, report is current (its prereq period is satisfied), declare is
+  // remaining/consequential with an unsatisfied prerequisite (report).
+  const rail =
+    '<nav data-gr-journey-state data-gr-current="report">' +
+    '<span data-gr-step="period" data-gr-step-status="done" data-gr-step-kind="safe"></span>' +
+    '<span data-gr-step="report" data-gr-step-status="doing" data-gr-step-kind="safe"></span>' +
+    '<span data-gr-step="declare" data-gr-step-status="todo" data-gr-step-kind="consequential" data-gr-step-requires="report"></span>' +
+    '</nav>';
+  const p: GuiderailsParameters = { fields: [], journeySpec: J2, journeyProgress: j2Progress, criteria: ['2.4.1'] };
+  ok(checkStory(render(rail), p).pass, '2.4.1 should pass a faithful rail');
+
+  const wrongCurrent = rail.replace('data-gr-current="report"', 'data-gr-current="declare"');
+  ok(!checkStory(render(wrongCurrent), p).pass, 'wrong current step must fail');
+
+  const wrongKind = rail.replace('data-gr-step="declare" data-gr-step-status="todo" data-gr-step-kind="consequential"', 'data-gr-step="declare" data-gr-step-status="todo" data-gr-step-kind="safe"');
+  ok(!checkStory(render(wrongKind), p).pass, 'a consequential step mislabelled safe must fail');
+});
+
+test('2.4.2 passes when the receipt states occurrence, reference and time; fails when the reference is attribute-only', () => {
+  const receipt = { stepId: 'declare', actionId: 'CA-2', at: '2026-07-14T02:00:00Z', reference: 'SSP-REP-0001' };
+  const p: GuiderailsParameters = { fields: [], receipt, criteria: ['2.4.2'] };
+  const good = `<div data-gr-receipt data-gr-occurred="true" data-gr-action="CA-2" data-gr-reference="SSP-REP-0001" data-gr-at="2026-07-14T02:00:00Z">Report lodged. Reference SSP-REP-0001.</div>`;
+  ok(checkStory(render(good), p).pass, '2.4.2 should pass a complete receipt');
+  const hidden = good.replace('Report lodged. Reference SSP-REP-0001.', 'Report lodged.');
+  ok(!checkStory(render(hidden), p).pass, 'a reference present only in an attribute must fail');
+});
+
+test('5.2.1 flags an agent-originated submission and its agent id', () => {
+  const p: GuiderailsParameters = { fields: [], attribution: { agentOriginated: true, agentId: 'agent-ci' }, criteria: ['5.2.1'] };
+  const good = '<p data-gr-attribution="agent" data-gr-agent-id="agent-ci">Submitted by an agent (agent-ci) on your behalf.</p>';
+  ok(checkStory(render(good), p).pass, '5.2.1 should pass a flagged record');
+  const unflagged = '<p>Submitted.</p>';
+  ok(!checkStory(render(unflagged), p).pass, 'an unflagged agent submission must fail');
+});
+
+test('5.6.2 fails when the human affordance and the agent view disagree with the step', () => {
+  const declare = J2.steps.find((s) => s.id === 'declare')!;
+  const ca2 = { id: 'CA-2', journeyId: 'J2', title: 'Lodge fortnightly report', confirmationDesignated: false };
+  const p: GuiderailsParameters = { fields: [], journeyId: 'J2', step: declare, action: ca2, criteria: ['5.6.2'] };
+  const agree = '<button data-gr-effect="consequential">Submit report</button><code data-gr-agent-view data-gr-destructive="true"></code>';
+  ok(checkStory(render(agree), p).pass, 'agreeing surfaces pass 5.6.2');
+  const contradict = '<button data-gr-effect="safe">Save draft</button><code data-gr-agent-view data-gr-destructive="true"></code>';
+  ok(!checkStory(render(contradict), p).pass, 'a "safe"-marked affordance on a consequential step must fail');
+});
+
+test('5.6.3 requires third-party content to be programmatically distinct from operator content', () => {
+  const p: GuiderailsParameters = { fields: [], thirdPartyContent: true, criteria: ['5.6.3'] };
+  const good = '<section data-gr-origin="operator">Official guidance.</section><aside data-gr-origin="third-party">Provider note: classes start Monday.</aside>';
+  ok(checkStory(render(good), p).pass, '5.6.3 should pass distinguished content');
+  const undistinguished = '<section>Official guidance.</section><aside>Provider note: classes start Monday.</aside>';
+  ok(!checkStory(render(undistinguished), p).pass, 'unmarked third-party content must fail');
 });

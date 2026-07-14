@@ -18,11 +18,11 @@ Evidence is real but scattered across three places, none of which knows about th
 
 | Surface | What it is | Criteria with evidence here | Browser-visible |
 | --- | --- | --- | --- |
-| **Storybook DOM gate** | `@storybook/test-runner` runs the addon's oracle against each story's rendered DOM, through live AgDS | 2.2.1, 2.2.2, 3.1.1, 3.4.3 (**4**) | Yes |
+| **Storybook DOM gate** | `@storybook/test-runner` runs the addon's oracle against each story's rendered DOM, through live AgDS | 2.2.1, 2.2.2, 3.1.1, 3.4.3, 2.4.1, 2.4.2, 5.2.1, 5.6.2, 5.6.3 (**9**) | Yes |
 | **Conformant server tests** | `conformant/src/{server,j2-j3}.test.ts` — `node:test` assertions against the running fixture's routes, registers and behaviour | ~30 criteria referenced (see below) | No |
 | **Recorded manual a11y pass** | `conformant/src/a11y.test.ts` plus the manual WCAG 2.2 AA audit | 2.1.1 | No |
 
-The union of the three is **31 of 56**. Only the first row is what a reviewer sees in a browser, which is why "how many are in the Storybook" and "how many are demonstrated" have very different answers.
+The union is **32 of 56** with automated evidence (9 browser-shown), after Layer 1 lifted five criteria into browser-verified stories and added 5.6.2. Only the first row is what a reviewer sees in a browser, which is why "how many are in the Storybook" and "how many are demonstrated" have different answers.
 
 ## The four evidence surfaces, and why Storybook is only one
 
@@ -56,8 +56,8 @@ Status: ✅ shown live in the browser · 🟩 automated evidence exists (server/
 | 2.2.3 | AA | Story | ⬜ |
 | 2.3.1 | AA | Surface | ⬜ |
 | 2.3.2 | AAA | Surface | ⬜ |
-| 2.4.1 | AA | Story + Surface | 🟩 |
-| 2.4.2 | A | Story + Behaviour | 🟩 |
+| 2.4.1 | AA | Story | ✅ |
+| 2.4.2 | A | Story | ✅ |
 | 2.5.1 | AA | Surface | ⬜ |
 | 2.5.2 | AA | Surface | ⬜ |
 | 2.6.1 | A | Surface + Behaviour | 🟩 |
@@ -85,7 +85,7 @@ Status: ✅ shown live in the browser · 🟩 automated evidence exists (server/
 | 5.1.2 | AA | Behaviour | 🟩 |
 | 5.1.3 | A | Behaviour | 🟩 |
 | 5.1.4 | AA | Behaviour | 🟩 |
-| 5.2.1 | A | Story + Behaviour | 🟩 |
+| 5.2.1 | A | Story | ✅ |
 | 5.3.1 | A | Behaviour + Story | 🟩 |
 | 5.3.2 | A | Behaviour | 🟩 |
 | 5.3.3 | A | Behaviour | ⬜ |
@@ -95,18 +95,16 @@ Status: ✅ shown live in the browser · 🟩 automated evidence exists (server/
 | 5.5.2 | AA | Behaviour | 🟩 |
 | 5.5.3 | AAA | Behaviour | ⬜ |
 | 5.6.1 | AA | Manual / Behaviour | ⬜ |
-| 5.6.2 | A | Story (parity oracle) | ⬜ |
-| 5.6.3 | AA | Story + Surface | 🟩 |
+| 5.6.2 | A | Story (parity oracle) | ✅ |
+| 5.6.3 | AA | Story | ✅ |
 
-### The 25 with no automated evidence yet
+### The 24 with no automated evidence yet
 
 - **Principle 1 (4):** 1.1.1, 1.3.1, 1.4.1, 1.5.1
 - **Principle 2 (5):** 2.2.3, 2.3.1, 2.3.2, 2.5.1, 2.5.2
 - **Principle 3 (6):** 3.1.2, 3.2.1, 3.3.1, 3.3.2, 3.5.1, 3.5.2
 - **Principle 4 (6):** 4.1.2, 4.3.1, 4.4.1, 4.4.2, 4.4.3, 4.5.1
-- **Principle 5 (4):** 5.3.3, 5.5.3, 5.6.1, 5.6.2
-
-Notably 5.6.2 (no agent surface contradicts human meaning) is Storybook-shaped — it is the parity oracle applied across both surfaces — and is a high-value browser demo we have not built.
+- **Principle 5 (3):** 5.3.3, 5.5.3, 5.6.1
 
 ## How to demonstrate all 56
 
@@ -116,9 +114,9 @@ Not "put everything in Storybook." A four-layer harness, each layer targeting th
 
 [`coverage.json`](coverage.json): one entry per criterion → `{ level, surface, status, evidence: [file references] }`, the single source of truth. Validated in CI by the [`coverage-check`](coverage-check/) package, which fails the build if the manifest drifts from MODEL.md or marks any criterion `covered`/`shown` without naming an evidence file that mentions it — so a criterion cannot be claimed without a named test. JSON, not YAML, to stay parseable under the zero-dependency rule. This is the **dogfooding** artifact CLAUDE.md's Dogfooding section lists as outstanding — the standard's "evidence or silence" directive (D-007) turned on the reference implementation's own self-report. Formalising it as a *required, gating* artifact is proposed as **DECISIONS.md D-022** (not decided here).
 
-### Layer 1 — expand the Storybook DOM gate (4 → ~10)
+### Layer 1 — expand the Storybook DOM gate (4 → 9, built)
 
-Add stories and checkers for the criteria a render can decide: 2.2.3 (meaning not by position/colour alone), 2.4.1 (step exposure — the rail already renders it), 2.4.2 (post-action confirmation render), 5.2.1 (agent-attribution badge), 5.3.1 (confirmation checkpoint render), 5.6.2 (parity oracle across surfaces), 5.6.3 (third-party content distinguishable). Ceiling is ~10; do not push past it.
+Done: added checkers and browser-verified stories (`storybook/src/journey-surfaces.stories.tsx`, `surfaces.tsx`) for 2.4.1 (journey-state exposure — current/remaining/kind/prerequisites), 2.4.2 (post-action receipt with reference and timestamp), 5.2.1 (agent-attribution flag), 5.6.2 (parity oracle — the human affordance and the agent's-eye tool derived from one step, so they cannot contradict), and 5.6.3 (third-party content programmatically distinguished from operator content). Each checker recomputes the expected surface from the spec and checks the DOM's `data-gr-*` markers against it — DOM against spec, never DOM against DOM. Remaining Storybook-shaped candidates for a later pass: 2.2.3 (meaning not by position/colour alone) and 5.3.1 (confirmation-checkpoint render). Ceiling is ~10; do not push past it.
 
 ### Layer 2 — machine-surface validation stories (~17)
 
@@ -139,3 +137,4 @@ When complete, the claim is not "Storybook proves conformance." It is: *every cr
 ## Changelog
 
 - **2026-07-14** — Created. Coverage baseline: 4 browser-shown, 31 with automated evidence, 25 gaps. Four-layer demo strategy proposed. Layer 0 built: machine-readable `coverage.json` + the `coverage-check` CI validator; formalisation proposed as DECISIONS.md D-022.
+- **2026-07-15** — Layer 1 built: 2.4.1, 2.4.2, 5.2.1, 5.6.2, 5.6.3 lifted into browser-verified stories (9 shown; 32 with automated evidence; 24 gaps).
