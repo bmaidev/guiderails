@@ -1,0 +1,16 @@
+{
+  "name": "@guiderails/coverage-check",
+  "version": "0.1.0",
+  "description": "Machine check on the reference implementation's conformance-coverage manifest (../coverage.json): it covers exactly MODEL.md's criteria, once each, with matching levels; and no criterion is marked covered or shown without naming an evidence file that mentions it. Dogfooding — DECISIONS.md D-022. See ../CONFORMANCE-COVERAGE.md.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
