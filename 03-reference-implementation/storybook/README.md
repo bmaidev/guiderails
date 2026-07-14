@@ -10,9 +10,15 @@ The **browser layer**, wired and running (D-021). It hosts the AgDS design-syste
 
 The GitHub Actions job is `.github/workflows/storybook.yml`, separate from the fast per-package matrix because it installs a browser and the full Storybook toolchain.
 
+## What it shows
+
+Full Guiderails journeys rendered as a real (fictional, D-009) Commonwealth service — the AgDS government header and footer, a left-hand step-progress rail, page heading and intro, and the standard Back/Continue actions. The stories cover **J1 Apply** (identity → circumstances → evidence → submit), **J2** fortnightly report, **J3** payment update, **J4** give-authority, an **error state** with accessible associated messages, and an **Every control** page exercising all ten data types: text, email, phone, date (DatePicker), integer, money, decimal, select, radio, textarea, file and checkbox.
+
 ## Verified end to end
 
-This isn't scaffolding. Confirmed on a real Chromium run: the two AgDS stories **pass** their claimed criteria rendered through live AgDS components, and a deliberately broken story (a control with no label, claiming 2.2.1) turns the run **red** with `2.2.1: "fullName" has no accessible name`. The gate catches real regressions in the browser.
+This isn't scaffolding. On a real Chromium run, **all eight journey-step stories pass** their claimed criteria rendered through live AgDS components, and a deliberately broken story turns the run **red** — the gate catches real regressions in the browser.
+
+**A real finding the gate surfaced.** AgDS `FileInput` (v1.35.1) renders a button plus a hidden file input and does **not** convey `required`/`aria-required` on the control, so a required file field's required-state is not machine-legible to an agent. The `EveryControl` story marks this `test: 'todo'` — the three-state gate reports it as a warning rather than failing the build — and it is recorded as a tested fact in `adapter-agds`. This is exactly what the gate is for: it found a genuine legibility gap in a real government design system, and named it rather than hiding it.
 
 ## Layout
 

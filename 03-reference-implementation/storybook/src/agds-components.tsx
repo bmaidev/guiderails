@@ -15,41 +15,64 @@
  */
 
 /**
- * The React binding: renders a FieldSpec through the real AgDS component the
- * adapter selects. BROWSER-VERIFIED — depends on react and @ag.ds-next/react,
- * which are not installed in the default matrix (see tsconfig.react.json). The
- * prop mapping it uses (`agdsFieldBinding`) is fully tested under jsdom in
- * `adapter.test.ts`; this file is the thin render on top.
+ * The React binding: renders a Guiderails FieldSpec through the real AgDS
+ * component the adapter selects — all ten data types. AgDS supplies the
+ * government look and the accessible rendering; the adapter supplies the machine
+ * meaning. BROWSER-VERIFIED (React + AgDS); the pure mapping is tested under
+ * jsdom in `adapter-agds`.
  */
 
 import React from 'react';
 import { TextInput } from '@ag.ds-next/react/text-input';
+import { Textarea } from '@ag.ds-next/react/textarea';
 import { Select } from '@ag.ds-next/react/select';
 import { Checkbox } from '@ag.ds-next/react/checkbox';
+import { ControlGroup } from '@ag.ds-next/react/control-group';
+import { Radio } from '@ag.ds-next/react/radio';
+import { DatePicker } from '@ag.ds-next/react/date-picker';
+import { FileInput } from '@ag.ds-next/react/file-input';
 import type { FieldSpec } from '../../packages/agent-surface/src/index.ts';
-import { agdsFieldBinding } from '../../packages/adapter-agds/src/adapter.ts';
-import type { RenderCtx } from '../../packages/adapter-agds/src/contract.ts';
+import { agdsFieldBinding, type RenderCtxExt } from '../../packages/adapter-agds/src/adapter.ts';
 
 /** Render one Guiderails field through AgDS. AgDS supplies pixels; the adapter supplies the machine meaning. */
-export function GuiderailsAgdsField({ field, ctx }: { field: FieldSpec; ctx?: RenderCtx }): React.ReactElement {
+export function GuiderailsAgdsField({ field, ctx }: { field: FieldSpec; ctx?: RenderCtxExt }): React.ReactElement {
   const { component, props } = agdsFieldBinding(field, ctx);
   switch (component) {
+    case 'Textarea':
+      return <Textarea {...(props as React.ComponentProps<typeof Textarea>)} />;
     case 'Select':
       return <Select {...(props as React.ComponentProps<typeof Select>)} />;
     case 'Checkbox':
       return <Checkbox {...(props as React.ComponentProps<typeof Checkbox>)} />;
+    case 'DatePicker':
+      return <DatePicker {...(props as React.ComponentProps<typeof DatePicker>)} />;
+    case 'FileInput':
+      return <FileInput {...(props as React.ComponentProps<typeof FileInput>)} />;
+    case 'Radio': {
+      const { label, hint, required, name, options } = props as {
+        label: string; hint?: string; required?: boolean; name: string; options: { label: string; value: string }[];
+      };
+      return (
+        <ControlGroup label={label} hint={hint} required={required} block>
+          {options.map((o) => (
+            <Radio key={o.value} name={name} value={o.value}>{o.label}</Radio>
+          ))}
+        </ControlGroup>
+      );
+    }
     default:
       return <TextInput {...(props as React.ComponentProps<typeof TextInput>)} />;
   }
 }
 
-/** Render a whole step's fields — the adapter as a distribution channel for a journey. */
+/** Render a step's fields, choosing a radio group for small closed sets so that control is exercised too. */
 export function GuiderailsAgdsFields({ fields }: { fields: FieldSpec[] }): React.ReactElement {
   return (
     <>
-      {fields.map((f) => (
-        <GuiderailsAgdsField key={f.name} field={f} />
-      ))}
+      {fields.map((f) => {
+        const smallEnum = f.dataType === 'enum' && (f.constraints?.enumValues?.length ?? 0) <= 3;
+        return <GuiderailsAgdsField key={f.name} field={f} ctx={smallEnum ? { variant: 'radio' } : undefined} />;
+      })}
     </>
   );
 }
